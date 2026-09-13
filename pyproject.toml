@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scoutlocal"
+version = "0.1.0"
+description = "Football recruitment analytics for clubs working with limited data."
+readme = "README.md"
+requires-python = ">=3.11"
+
+dependencies = [
+    "pandas>=2.2",
+    "requests>=2.31",
+    "numpy>=1.26"
+]
+
+[tool.setuptools.packages.find]
+include = ["scoutlocal*"]
