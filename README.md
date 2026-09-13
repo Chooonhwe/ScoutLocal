@@ -1,54 +1,31 @@
 # ScoutLocal
 
-Open-source football recruitment analytics for clubs working with limited data and resources.
+ScoutLocal is a football analytics project focused on helping "clubs" and "teams" make better recruitment decisions using limited data.
 
-## V0.1 goal
-Turn legally available StatsBomb Open Data into a player-level scouting table with per-90 metrics.
+The idea came from my interest in football and Football Manager, where recruitment decisions often involve comparing many players across different attributes and roles.
 
-## Current features
-- List available StatsBomb open competitions
-- Download match/event data directly from the StatsBomb Open Data GitHub repository
-- Aggregate player actions
-- Calculate basic per-90 metrics
-- Export a clean CSV for later scouting analysis
+I wanted to explore how data analytics could be used to make that process more structured, realistic and explainable and to see how analysis profession in the Footballing world work with.different things as their data is much better with other factors that i cannot replicate/
 
-## Planned next steps
-1. Position groups
-2. Percentile rankings
-3. Role-fit scoring
-4. Player similarity
-5. Under-the-radar player detection
-6. Interactive scouting dashboard
+##  Goal
 
-## Quick start
+The goal of ScoutLocal is to build a football recruitment decision-support tool that can help identify players based on:
+- Player overall performance
+- Position and role suitability
+- Fit for a team
+- Player similarity
+- Squad needs
 
-```bash
-python -m venv .venv
+A key focus of the project is working with **limited and legally available football data** as im just doing this for the intrest and to kill time
 
-# Windows
-.venv\Scripts\activate
+Instead of assuming that every club has access to expensive scouting databases, this set will explore what useful insights can still be produced when data and resources are limited.
 
-# macOS/Linux
-source .venv/bin/activate
+In the future, I hope to explore how a system like this could be useful for smaller football markets, espcially Singapore as this is my home country.
 
-pip install -r requirements.txt
-python scripts/list_competitions.py
-```
+## Project Status
 
-Pick one competition_id and season_id from the output, then:
+Development is just beginning.
 
-```bash
-python scripts/build_player_metrics.py --competition-id YOUR_ID --season-id YOUR_ID
-```
+The first step will be building a reliable football dataset and understanding what insights can realistically be produced from the available datasets.
 
-The generated file will appear in:
 
-```text
-data/player_metrics.csv
-```
-
-## Data source
-StatsBomb Open Data:
-https://github.com/statsbomb/open-data
-
-Use of StatsBomb open data should follow the repository's attribution requirements.
+Built by **Soh Choon Hwe**
