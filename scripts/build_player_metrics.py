@@ -6,7 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from scoutlocal.data.statsbomb import StatsBombOpenData
-from scoutlocal.data.minutes import estimate_minutes_from_events
+from scoutlocal.data.minutes import calculate_minutes
 from scoutlocal.metrics.player_metrics import (
     aggregate_events,
     add_per90_metrics,
@@ -47,7 +47,7 @@ def main():
         events = client.events(match_id)
 
         event_metrics = aggregate_events(events)
-        minute_metrics = estimate_minutes_from_events(events)
+        minute_metrics = calculate_minutes(events)
 
         if not event_metrics.empty:
             all_totals.append(event_metrics)
@@ -95,6 +95,7 @@ def main():
 
     print()
     print(f"Saved: {output_path}")
+    print(f"Players: {len(players)}")
     print()
     print(players.head(15).to_string(index=False))
 
