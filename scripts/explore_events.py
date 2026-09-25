@@ -1,71 +1,50 @@
 from scoutlocal.data.statsbomb import StatsBombOpenData
+from scoutlocal.metrics.player_metrics import (
+    aggregate_events,
+    add_per90_metrics,
+)
+from scoutlocal.data.minutes import calculate_minutes
 
 
-# Create the StatsBomb data client
+# get statsbomb data
 client = StatsBombOpenData()
 
-
-# Download all events from one match
-# Match ID 3827336 = the match we are currently exploring
+# using this match to test first
 events = client.events(3827336)
 
 
-# Check how many events exist in this match
+# see how many events there are
 print("Total events:", len(events))
 
 
-# --------------------------------------------------
-# 1. FIND ALL UNIQUE EVENT TYPES
-# --------------------------------------------------
-
-# A set stores unique values only
+# find all the different event types
 event_types = set()
 
-# Go through every event
 for event in events:
-
-    # Get the event type, e.g. Pass, Shot, Carry
-    event_type = event["type"]["name"]
-
-    # Add it to our set
-    event_types.add(event_type)
-
+    event_types.add(event["type"]["name"])
 
 print("\nEVENT TYPES\n")
 print(event_types)
 
 
-# --------------------------------------------------
-# 2. SEE THE STRUCTURE OF EACH EVENT TYPE
-# --------------------------------------------------
-
+# check what each event type contains
 print("\nEVENT STRUCTURES\n")
 
-# sorted() puts the event types in alphabetical order
 for event_type in sorted(event_types):
 
-    # Find the first example of this event type
     example = next(
         event for event in events
         if event["type"]["name"] == event_type
     )
 
-    # Print the event type
     print(event_type)
-
-    # Show what fields exist inside that event
     print(example.keys())
-
     print()
 
 
-# --------------------------------------------------
-# 3. EXPLORE SPECIAL FIELDS INSIDE EVENTS
-# --------------------------------------------------
-
+# check what is inside the more important event types
 print("\nNESTED EVENT FIELDS\n")
 
-# Different event types contain their own special data
 special_fields = [
     "pass",
     "shot",
@@ -76,28 +55,83 @@ special_fields = [
     "interception",
     "goalkeeper",
     "substitution",
-    "tactics"
+    "tactics",
 ]
 
-
-# Check each special field
 for field in special_fields:
 
-    # Find the first event containing this field
     example = next(
         (
             event for event in events
             if field in event
         ),
-        None
+        None,
     )
 
-    # Only print if we found one
     if example is not None:
-
         print(field)
-
-        # Show the fields inside it
         print(example[field].keys())
-
         print()
+
+
+# make the basic player stats
+print("\nPLAYER METRICS\n")
+
+player_metrics = aggregate_events(events)
+
+print(player_metrics)
+
+
+# check starting 11
+print("\nSTARTING XI\n")
+
+for event in events:
+    if event["type"]["name"] == "Starting XI":
+        print(event)
+        print()
+
+
+# check who got subbed and when
+print("\nSUBSTITUTIONS\n")
+
+for event in events:
+    if event["type"]["name"] == "Substitution":
+        print(event)
+        print()
+
+
+# check when each half ended
+print("\nHALF END\n")
+
+for event in events:
+    if event["type"]["name"] == "Half End":
+        print(event)
+        print()
+
+
+# calculate how long everyone played
+print("\nPLAYER MINUTES\n")
+
+player_minutes = calculate_minutes(events)
+
+print(player_minutes)
+
+
+# put player stats and minutes together
+print("\nPLAYER METRICS + MINUTES\n")
+
+combined = player_metrics.merge(
+    player_minutes,
+    on=["player_id", "player_name", "team_name"],
+    how="left",
+)
+
+print(combined)
+
+
+# add per 90 stats so playing time is more fair
+print("\nPLAYER METRICS PER 90\n")
+
+combined = add_per90_metrics(combined)
+
+print(combined)
