@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 from collections import defaultdict
 import pandas as pd
 
 
-
 MATCH_MINUTES_FALLBACK = 90.0
+
+
+# change the event time into seconds
 def _event_time_seconds(event: dict) -> float:
     minute = event.get("minute", 0)
     second = event.get("second", 0)
@@ -12,7 +15,7 @@ def _event_time_seconds(event: dict) -> float:
     return float(minute * 60 + second)
 
 
-# ADD THIS HERE
+# make the time easier to read like 96:49
 def _format_minutes(seconds: float) -> str:
     total_seconds = round(seconds)
 
@@ -22,6 +25,7 @@ def _format_minutes(seconds: float) -> str:
     return f"{minutes}:{remaining_seconds:02d}"
 
 
+# find when the match ended
 def _match_end_seconds(events: list[dict]) -> float:
     half_end_times = []
 
@@ -33,18 +37,9 @@ def _match_end_seconds(events: list[dict]) -> float:
         return max(half_end_times)
 
     return MATCH_MINUTES_FALLBACK * 60
-def _match_end_seconds(events: list[dict]) -> float:
-    half_end_times = []
 
-    for event in events:
-        if event.get("type", {}).get("name") == "Half End":
-            half_end_times.append(_event_time_seconds(event))
 
-    if half_end_times:
-        return max(half_end_times)
-
-    return MATCH_MINUTES_FALLBACK * 60
-
+# get all the starting players
 def _get_starters(events: list[dict]) -> dict:
     starters = {}
 
@@ -74,6 +69,8 @@ def _get_starters(events: list[dict]) -> dict:
 
     return starters
 
+
+# get who went out, who came in and when
 def _get_substitutions(events: list[dict]) -> list[dict]:
     substitutions = []
 
@@ -98,6 +95,9 @@ def _get_substitutions(events: list[dict]) -> list[dict]:
         })
 
     return substitutions
+
+
+# calculate how long every player played
 def calculate_minutes(events: list[dict]) -> pd.DataFrame:
     match_end = _match_end_seconds(events)
     starters = _get_starters(events)
@@ -105,15 +105,14 @@ def calculate_minutes(events: list[dict]) -> pd.DataFrame:
 
     player_times = {}
 
-    # All starters begin at 0 and are assumed
-    # to play until the end of the match.
+    # starters begin from the start of the match
     for key, start_time in starters.items():
         player_times[key] = {
             "start": start_time,
             "end": match_end,
         }
 
-    # Update times using substitutions.
+    # change the times when substitutions happen
     for substitution in substitutions:
         team_name = substitution["team_name"]
         substitution_time = substitution["time_seconds"]
@@ -130,11 +129,11 @@ def calculate_minutes(events: list[dict]) -> pd.DataFrame:
             team_name,
         )
 
-        # The outgoing player stops playing here.
+        # outgoing player stops here
         if outgoing_key in player_times:
             player_times[outgoing_key]["end"] = substitution_time
 
-        # The replacement starts playing here.
+        # replacement starts here
         player_times[replacement_key] = {
             "start": substitution_time,
             "end": match_end,
@@ -143,22 +142,23 @@ def calculate_minutes(events: list[dict]) -> pd.DataFrame:
     records = []
 
     for (player_id, player_name, team_name), times in player_times.items():
-        minutes = (times["end"] - times["start"]) / 60
+        seconds_played = times["end"] - times["start"]
+        minutes = seconds_played / 60
 
         records.append({
-        "player_id": player_id,
-        "player_name": player_name,
-        "team_name": team_name,
-        "minutes": minutes,
-        "minutes_display": _format_minutes(
-        times["end"] - times["start"]
-    ),
-})
+            "player_id": player_id,
+            "player_name": player_name,
+            "team_name": team_name,
+            "seconds_played": seconds_played,
+            "minutes": minutes,
+            "minutes_display": _format_minutes(seconds_played),
+        })
 
     return pd.DataFrame(records)
 
-def estimate_minutes_from_events(events: list[dict]) -> pd.DataFrame:
 
+# old method kept here for now
+def estimate_minutes_from_events(events: list[dict]) -> pd.DataFrame:
     player_times = defaultdict(lambda: {"first": None, "last": None})
 
     for event in events:
@@ -169,11 +169,25 @@ def estimate_minutes_from_events(events: list[dict]) -> pd.DataFrame:
         if not player or not team or minute is None:
             continue
 
-        key = (player["id"], player["name"], team["name"])
+        key = (
+            player["id"],
+            player["name"],
+            team["name"],
+        )
+
         info = player_times[key]
 
-        info["first"] = minute if info["first"] is None else min(info["first"], minute)
-        info["last"] = minute if info["last"] is None else max(info["last"], minute)
+        info["first"] = (
+            minute
+            if info["first"] is None
+            else min(info["first"], minute)
+        )
+
+        info["last"] = (
+            minute
+            if info["last"] is None
+            else max(info["last"], minute)
+        )
 
     records = []
 
@@ -181,7 +195,10 @@ def estimate_minutes_from_events(events: list[dict]) -> pd.DataFrame:
         if info["first"] is None or info["last"] is None:
             minutes = 0.0
         else:
-            minutes = max(float(info["last"] - info["first"]), 1.0)
+            minutes = max(
+                float(info["last"] - info["first"]),
+                1.0,
+            )
 
         records.append({
             "player_id": player_id,
