@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from scoutlocal.data import minutes
 from scoutlocal.data.statsbomb import StatsBombOpenData
 from scoutlocal.data.minutes import calculate_minutes
 from scoutlocal.metrics.player_metrics import (
@@ -66,12 +67,29 @@ def main():
     )
 
     minutes = pd.concat(all_minutes, ignore_index=True)
+
     minutes = (
-        minutes
-        .groupby(["player_id", "player_name", "team_name"], as_index=False)
-        ["minutes"]
-        .sum()
+    minutes
+    .groupby(
+        ["player_id", "player_name", "team_name"],
+        as_index=False,
     )
+    ["seconds_played"]
+    .sum()
+    )
+
+    # calculate decimal minutes from the total seconds
+    minutes["minutes"] = minutes["seconds_played"] / 60
+
+# make the total time easy to read
+    total_seconds = minutes["seconds_played"].round().astype(int)
+
+    minutes["minutes_display"] = (
+      (total_seconds // 60).astype(str)
+     + ":"
+     + (total_seconds % 60).astype(str).str.zfill(2)
+    )
+
 
     players = totals.merge(
         minutes,
