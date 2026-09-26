@@ -135,3 +135,100 @@ print("\nPLAYER METRICS PER 90\n")
 combined = add_per90_metrics(combined)
 
 print(combined)
+
+# look at some passes and their locations
+print("\nPASS LOCATIONS\n")
+
+pass_count = 0
+
+for event in events:
+    if event["type"]["name"] != "Pass":
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event.get("location"))
+    print("End:", event.get("pass", {}).get("end_location"))
+    print("Length:", event.get("pass", {}).get("length"))
+    print("Angle:", event.get("pass", {}).get("angle"))
+    print()
+
+    pass_count += 1
+    # only checking 5 passes 
+    if pass_count == 5:
+        break
+
+
+#This is a test to see if the forward pass function works 
+from scoutlocal.metrics.passing import (
+    is_forward_pass,
+    is_final_third_pass,
+    is_final_third_entry,
+    aggregate_passing,
+)
+
+# find some forward passes
+print("\nFORWARD PASSES\n")
+
+forward_count = 0
+
+for event in events:
+    if not is_forward_pass(event):
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event["location"])
+    print("End:", event["pass"]["end_location"])
+    print()
+
+    forward_count += 1
+
+    if forward_count == 5:
+        break
+
+
+# find some passes that end in the final third
+print("\nFINAL THIRD PASSES\n")
+
+final_third_count = 0
+
+for event in events:
+    if not is_final_third_pass(event):
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event["location"])
+    print("End:", event["pass"]["end_location"])
+    print()
+
+    final_third_count += 1
+
+    if final_third_count == 5:
+        break
+
+# see what pass types statsbomb gives us
+print("\nPASS TYPES\n")
+
+pass_types = set()
+
+for event in events:
+    if event.get("type", {}).get("name") != "Pass":
+        continue
+
+    pass_type = event.get("pass", {}).get("type", {}).get("name")
+
+    if pass_type:
+        pass_types.add(pass_type)
+
+print(pass_types)
+
+# test all the passing stats
+print("\nPASSING METRICS\n")
+
+passing_metrics = aggregate_passing(events)
+
+print(
+    passing_metrics.sort_values(
+        "passes",
+        ascending=False,
+    ).to_string(index=False)
+)
