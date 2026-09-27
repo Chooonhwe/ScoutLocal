@@ -1,9 +1,15 @@
 from scoutlocal.data.statsbomb import StatsBombOpenData
+from scoutlocal.data.minutes import calculate_minutes
 from scoutlocal.metrics.player_metrics import (
     aggregate_events,
     add_per90_metrics,
 )
-from scoutlocal.data.minutes import calculate_minutes
+from scoutlocal.metrics.passing import (
+    is_forward_pass,
+    is_final_third_pass,
+    is_final_third_entry,
+    aggregate_passing,
+)
 
 
 # get statsbomb data
@@ -31,9 +37,9 @@ print(event_types)
 print("\nEVENT STRUCTURES\n")
 
 for event_type in sorted(event_types):
-
     example = next(
-        event for event in events
+        event
+        for event in events
         if event["type"]["name"] == event_type
     )
 
@@ -59,10 +65,10 @@ special_fields = [
 ]
 
 for field in special_fields:
-
     example = next(
         (
-            event for event in events
+            event
+            for event in events
             if field in event
         ),
         None,
@@ -136,6 +142,7 @@ combined = add_per90_metrics(combined)
 
 print(combined)
 
+
 # look at some passes and their locations
 print("\nPASS LOCATIONS\n")
 
@@ -153,18 +160,11 @@ for event in events:
     print()
 
     pass_count += 1
-    # only checking 5 passes 
+
+    # only checking 5 passes
     if pass_count == 5:
         break
 
-
-#This is a test to see if the forward pass function works 
-from scoutlocal.metrics.passing import (
-    is_forward_pass,
-    is_final_third_pass,
-    is_final_third_entry,
-    aggregate_passing,
-)
 
 # find some forward passes
 print("\nFORWARD PASSES\n")
@@ -182,6 +182,7 @@ for event in events:
 
     forward_count += 1
 
+    # only checking 5 passes
     if forward_count == 5:
         break
 
@@ -202,8 +203,31 @@ for event in events:
 
     final_third_count += 1
 
+    # only checking 5 passes
     if final_third_count == 5:
         break
+
+
+# find some passes that enter the final third
+print("\nFINAL THIRD ENTRIES\n")
+
+final_third_entry_count = 0
+
+for event in events:
+    if not is_final_third_entry(event):
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event["location"])
+    print("End:", event["pass"]["end_location"])
+    print()
+
+    final_third_entry_count += 1
+
+    # only checking 5 passes
+    if final_third_entry_count == 5:
+        break
+
 
 # see what pass types statsbomb gives us
 print("\nPASS TYPES\n")
@@ -214,12 +238,18 @@ for event in events:
     if event.get("type", {}).get("name") != "Pass":
         continue
 
-    pass_type = event.get("pass", {}).get("type", {}).get("name")
+    pass_type = (
+        event
+        .get("pass", {})
+        .get("type", {})
+        .get("name")
+    )
 
     if pass_type:
         pass_types.add(pass_type)
 
 print(pass_types)
+
 
 # test all the passing stats
 print("\nPASSING METRICS\n")
