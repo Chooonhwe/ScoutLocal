@@ -87,6 +87,12 @@ def main():
             "No player event data was produced."
         )
 
+    # stop if no player minutes were found
+    if not all_minutes:
+        raise RuntimeError(
+            "No player minutes data was produced."
+        )
+
     # combine player stats from every match
     totals = pd.concat(
         all_totals,
@@ -139,9 +145,9 @@ def main():
         .str.zfill(2)
     )
 
-    # put player stats and minutes together
-    players = totals.merge(
-        minutes,
+    # start with everyone who played
+    players = minutes.merge(
+        totals,
         on=[
             "player_id",
             "player_name",
@@ -150,9 +156,20 @@ def main():
         how="left",
     )
 
-    # protect against missing minutes
-    players["minutes"] = (
-        players["minutes"].fillna(0)
+    # players with no recorded stats should have 0
+    stat_columns = [
+        "passes",
+        "completed_passes",
+        "shots",
+        "carries",
+        "pressures",
+        "interceptions",
+        "ball_recoveries",
+        "xg",
+    ]
+
+    players[stat_columns] = (
+        players[stat_columns].fillna(0)
     )
 
     # calculate per 90 stats
