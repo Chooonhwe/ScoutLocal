@@ -1,10 +1,25 @@
-#final_third_pass   is  pass ends at x >= 80
-#final_third_entry  is starts below 80 AND ends at/above 80
-#progressive_pass   is separate definition later
-#Some of the coordinates in our data sit outside the bounds of the pitch (you can see the layout of our pitch coordinates in our event spec, but it's 0-120 along the x axis and 0-80 along the y axis)
+# final_third_pass  is pass ends at x >= 80
+# final_third_entry is starts below 80 AND ends at/above 80
+# progressive_pass  is separate definition later
+# StatsBomb pitch coordinates: x 0-120, y 0-80
+
 from __future__ import annotations
 from collections import defaultdict
 import pandas as pd
+
+
+def is_completed_pass(event: dict) -> bool:
+    # only check passes
+    if event.get("type", {}).get("name") != "Pass":
+        return False
+
+    pass_data = event.get("pass")
+
+    if not pass_data:
+        return False
+
+    # no outcome means the pass was completed
+    return pass_data.get("outcome") is None
 
 
 def is_forward_pass(event: dict) -> bool:
@@ -24,6 +39,7 @@ def is_forward_pass(event: dict) -> bool:
 
     return end_x > start_x
 
+
 def is_final_third_pass(event: dict) -> bool:
     # only check passes
     if event.get("type", {}).get("name") != "Pass":
@@ -37,6 +53,7 @@ def is_final_third_pass(event: dict) -> bool:
     end_x = end[0]
 
     return end_x >= 80
+
 
 def is_final_third_entry(event: dict) -> bool:
     # only check passes
@@ -53,6 +70,7 @@ def is_final_third_entry(event: dict) -> bool:
     end_x = end[0]
 
     return start_x < 80 and end_x >= 80
+
 
 def aggregate_passing(events: list[dict]) -> pd.DataFrame:
     rows = defaultdict(lambda: defaultdict(float))
@@ -79,17 +97,36 @@ def aggregate_passing(events: list[dict]) -> pd.DataFrame:
         row["player_name"] = player["name"]
         row["team_name"] = team["name"]
 
+        # check completion once
+        completed = is_completed_pass(event)
+
         # count every pass
         row["passes"] += 1
 
+        # count completed passes
+        if completed:
+            row["completed_passes"] += 1
+
+        # count forward passes
         if is_forward_pass(event):
             row["forward_passes"] += 1
 
+            if completed:
+                row["completed_forward_passes"] += 1
+
+        # passes that end in the final third
         if is_final_third_pass(event):
             row["final_third_passes"] += 1
 
+            if completed:
+                row["completed_final_third_passes"] += 1
+
+        # passes that enter the final third
         if is_final_third_entry(event):
             row["final_third_entries"] += 1
+
+            if completed:
+                row["completed_final_third_entries"] += 1
 
     if not rows:
         return pd.DataFrame()
