@@ -8,6 +8,7 @@ from scoutlocal.metrics.passing import (
     is_forward_pass,
     is_final_third_pass,
     is_final_third_entry,
+    is_progressive_pass,
     aggregate_passing,
 )
 
@@ -256,9 +257,53 @@ print("\nPASSING METRICS\n")
 
 passing_metrics = aggregate_passing(events)
 
+assert (
+    passing_metrics["completed_progressive_passes"]
+    <= passing_metrics["progressive_passes"]
+).all()
 print(
     passing_metrics.sort_values(
         "passes",
         ascending=False,
     ).to_string(index=False)
 )
+
+print("\nPROGRESSIVE PASSES\n")
+
+progressive_count = 0
+
+for event in events:
+    if not is_progressive_pass(event):
+        continue
+
+    start = event["location"]
+    end = event["pass"]["end_location"]
+
+    print("Player:", event["player"]["name"])
+    print("Start:", start)
+    print("End:", end)
+
+    print(
+        "Completed:",
+        event["pass"].get("outcome") is None,
+    )
+
+    print(
+        "Pass type:",
+        event.get("pass", {})
+        .get("type", {})
+        .get("name"),
+    )
+
+    print(
+        "Play pattern:",
+        event.get("play_pattern", {})
+        .get("name"),
+    )
+
+    print()
+
+    progressive_count += 1
+
+    if progressive_count == 10:
+        break

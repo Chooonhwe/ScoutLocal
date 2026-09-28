@@ -6,7 +6,7 @@
 from __future__ import annotations
 from collections import defaultdict
 import pandas as pd
-
+import math 
 
 def is_completed_pass(event: dict) -> bool:
     # only check passes
@@ -71,6 +71,52 @@ def is_final_third_entry(event: dict) -> bool:
 
     return start_x < 80 and end_x >= 80
 
+def is_progressive_pass(event: dict) -> bool:
+    # only check passes
+    if event.get("type", {}).get("name") != "Pass":
+        return False
+
+    # only use open play
+    play_pattern = (
+        event.get("play_pattern", {}).get("name")
+    )
+
+    if play_pattern != "Regular Play":
+        return False
+
+    start = event.get("location")
+    end = event.get("pass", {}).get("end_location")
+
+    # need both locations
+    if not start or not end:
+        return False
+
+    # centre of opponent goal
+    goal_x = 120
+    goal_y = 40
+
+    # distance from start to goal
+    start_distance = math.sqrt(
+        (goal_x - start[0]) ** 2
+        + (goal_y - start[1]) ** 2
+    )
+
+    # distance from end to goal
+    end_distance = math.sqrt(
+        (goal_x - end[0]) ** 2
+        + (goal_y - end[1]) ** 2
+    )
+
+    # avoid dividing by zero
+    if start_distance == 0:
+        return False
+
+    # how much closer the pass gets to goal
+    progress_pct = (
+        start_distance - end_distance
+    ) / start_distance
+
+    return progress_pct >= 0.25
 
 def aggregate_passing(events: list[dict]) -> pd.DataFrame:
     rows = defaultdict(lambda: defaultdict(float))
@@ -127,6 +173,13 @@ def aggregate_passing(events: list[dict]) -> pd.DataFrame:
 
             if completed:
                 row["completed_final_third_entries"] += 1
+
+        # progressive passes in open play
+        if is_progressive_pass(event):
+            row["progressive_passes"] += 1
+
+            if completed:
+                row["completed_progressive_passes"] += 1
 
     if not rows:
         return pd.DataFrame()
