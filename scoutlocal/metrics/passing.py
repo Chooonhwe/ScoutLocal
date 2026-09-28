@@ -71,6 +71,41 @@ def is_final_third_entry(event: dict) -> bool:
 
     return start_x < 80 and end_x >= 80
 
+def is_penalty_box_entry(event: dict) -> bool:
+    # only check passes
+    if event.get("type", {}).get("name") != "Pass":
+        return False
+
+    # only use open play
+    play_pattern = (
+        event.get("play_pattern", {}).get("name")
+    )
+
+    if play_pattern != "Regular Play":
+        return False
+
+    start = event.get("location")
+    end = event.get("pass", {}).get("end_location")
+
+    # need both locations
+    if not start or not end:
+        return False
+
+    # check if pass starts inside the box
+    start_in_box = (
+        start[0] >= 102
+        and 18 <= start[1] <= 62
+    )
+
+    # check if pass ends inside the box
+    end_in_box = (
+        end[0] >= 102
+        and 18 <= end[1] <= 62
+    )
+
+    # starts outside and ends inside
+    return not start_in_box and end_in_box
+
 def is_progressive_pass(event: dict) -> bool:
     # only check passes
     if event.get("type", {}).get("name") != "Pass":
@@ -119,6 +154,84 @@ def is_progressive_pass(event: dict) -> bool:
     return progress_pct >= 0.25
 
 def aggregate_passing(events: list[dict]) -> pd.DataFrame:
+    rows = defaultdict(lambda: defaultdict(float))
+
+    for event in events:
+        # only use pass events
+        if event.get("type", {}).get("name") != "Pass":
+            continue
+
+        player = event.get("player")
+        team = event.get("team")
+
+        # need player and team info
+        if not player or not team:
+            continue
+
+        key = (
+            player["id"],
+            player["name"],
+            team["name"],
+        )
+
+        row = rows[key]
+
+        row["player_id"] = player["id"]
+        row["player_name"] = player["name"]
+        row["team_name"] = team["name"]
+
+        # check completion once
+        completed = is_completed_pass(event)
+
+        # all passes
+        row["passes"] += 1
+
+        if completed:
+            row["completed_passes"] += 1
+
+        # forward passes
+        if is_forward_pass(event):
+            row["forward_passes"] += 1
+
+            if completed:
+                row["completed_forward_passes"] += 1
+
+        # passes ending in the final third
+        if is_final_third_pass(event):
+            row["final_third_passes"] += 1
+
+            if completed:
+                row["completed_final_third_passes"] += 1
+
+        # passes entering the final third
+        if is_final_third_entry(event):
+            row["final_third_entries"] += 1
+
+            if completed:
+                row["completed_final_third_entries"] += 1
+
+        # passes entering the penalty box
+        if is_penalty_box_entry(event):
+            row["penalty_box_entries"] += 1
+
+            if completed:
+                row["completed_penalty_box_entries"] += 1
+
+        # progressive passes
+        if is_progressive_pass(event):
+            row["progressive_passes"] += 1
+
+            if completed:
+                row["completed_progressive_passes"] += 1
+
+    # return empty table if there were no passes
+    if not rows:
+        return pd.DataFrame()
+
+    # turn player data into a dataframe
+    df = pd.DataFrame(rows.values()).fillna(0)
+
+    return df
     rows = defaultdict(lambda: defaultdict(float))
 
     for event in events:

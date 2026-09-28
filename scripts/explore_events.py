@@ -4,14 +4,16 @@ from scoutlocal.metrics.player_metrics import (
     aggregate_events,
     add_per90_metrics,
 )
+
+
 from scoutlocal.metrics.passing import (
     is_forward_pass,
     is_final_third_pass,
     is_final_third_entry,
+    is_penalty_box_entry,
     is_progressive_pass,
     aggregate_passing,
 )
-
 
 # get statsbomb data
 client = StatsBombOpenData()
@@ -258,6 +260,11 @@ print("\nPASSING METRICS\n")
 passing_metrics = aggregate_passing(events)
 
 assert (
+    passing_metrics["completed_penalty_box_entries"]
+    <= passing_metrics["penalty_box_entries"]
+).all()
+
+assert (
     passing_metrics["completed_progressive_passes"]
     <= passing_metrics["progressive_passes"]
 ).all()
@@ -306,4 +313,31 @@ for event in events:
     progressive_count += 1
 
     if progressive_count == 10:
+        break
+
+print("\nPENALTY BOX ENTRIES\n")
+
+box_entry_count = 0
+
+for event in events:
+    if not is_penalty_box_entry(event):
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event["location"])
+    print("End:", event["pass"]["end_location"])
+    print(
+        "Completed:",
+        event["pass"].get("outcome") is None,
+    )
+    print(
+        "Play pattern:",
+        event.get("play_pattern", {})
+        .get("name"),
+    )
+    print()
+
+    box_entry_count += 1
+
+    if box_entry_count == 10:
         break
