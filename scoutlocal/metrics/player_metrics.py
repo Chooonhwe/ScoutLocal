@@ -88,12 +88,6 @@ def aggregate_events(events: list[dict]) -> pd.DataFrame:
 
 
 def add_per90_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Add basic per-90 metrics.
-
-    Requires a 'minutes' column. Players with zero minutes are protected
-    from division-by-zero and receive 0 for per-90 values.
-    """
     df = df.copy()
 
     if "minutes" not in df.columns:
@@ -110,6 +104,23 @@ def add_per90_metrics(df: pd.DataFrame) -> pd.DataFrame:
         "interceptions",
         "ball_recoveries",
         "xg",
+        "forward_passes",
+        "completed_forward_passes",
+        "final_third_passes",
+        "completed_final_third_passes",
+        "final_third_entries",
+        "completed_final_third_entries",
+        "progressive_passes",
+        "completed_progressive_passes",
+        "penalty_box_entries",
+        "completed_penalty_box_entries",
+        "long_passes",
+        "completed_long_passes",
+        "crosses",
+        "completed_crosses",
+        "shot_assists",
+        "goal_assists",
+        "key_passes",
     ]
 
     for column in source_columns:
@@ -120,6 +131,48 @@ def add_per90_metrics(df: pd.DataFrame) -> pd.DataFrame:
     df["pass_completion_pct"] = (
         df["completed_passes"]
         / df["passes"].replace(0, pd.NA)
+        * 100
+    ).fillna(0)
+
+    df["forward_pass_completion_pct"] = (
+        df["completed_forward_passes"]
+        / df["forward_passes"].replace(0, pd.NA)
+        * 100
+    ).fillna(0)
+
+    df["final_third_pass_completion_pct"] = (
+        df["completed_final_third_passes"]
+        / df["final_third_passes"].replace(0, pd.NA)
+        * 100
+    ).fillna(0)
+
+    df["final_third_entry_completion_pct"] = (
+        df["completed_final_third_entries"]
+        / df["final_third_entries"].replace(0, pd.NA)
+        * 100
+    ).fillna(0)
+
+    df["progressive_pass_completion_pct"] = (
+        df["completed_progressive_passes"]
+        / df["progressive_passes"].replace(0, pd.NA)
+        * 100
+    ).fillna(0)
+
+    df["penalty_box_entry_completion_pct"] = (
+        df["completed_penalty_box_entries"]
+        / df["penalty_box_entries"].replace(0, pd.NA)
+        * 100
+    ).fillna(0)
+
+    df["long_pass_completion_pct"] = (
+        df["completed_long_passes"]
+        / df["long_passes"].replace(0, pd.NA)
+        * 100
+    ).fillna(0)
+
+    df["cross_completion_pct"] = (
+        df["completed_crosses"]
+        / df["crosses"].replace(0, pd.NA)
         * 100
     ).fillna(0)
 

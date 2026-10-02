@@ -11,6 +11,7 @@ from scoutlocal.metrics.player_metrics import (
     aggregate_events,
     add_per90_metrics,
 )
+from scoutlocal.metrics.passing import aggregate_passing
 
 
 def parse_args():
@@ -53,6 +54,7 @@ def main():
         matches = matches[: args.max_matches]
 
     all_totals = []
+    all_passing = []
     all_minutes = []
 
     print(f"Processing {len(matches)} matches...")
@@ -72,11 +74,17 @@ def main():
         # calculate player stats
         event_metrics = aggregate_events(events)
 
+        # calculate passing stats
+        passing_metrics = aggregate_passing(events)
+
         # calculate how long each player played
         minute_metrics = calculate_minutes(events)
 
         if not event_metrics.empty:
             all_totals.append(event_metrics)
+
+        if not passing_metrics.empty:
+            all_passing.append(passing_metrics)
 
         if not minute_metrics.empty:
             all_minutes.append(minute_metrics)
@@ -85,6 +93,12 @@ def main():
     if not all_totals:
         raise RuntimeError(
             "No player event data was produced."
+        )
+
+    # stop if no passing stats were found
+    if not all_passing:
+        raise RuntimeError(
+            "No player passing data was produced."
         )
 
     # stop if no player minutes were found
@@ -108,6 +122,29 @@ def main():
         )
         .sum(numeric_only=True)
     )
+
+    passing_totals = pd.concat(
+        all_passing,
+        ignore_index=True,
+    )
+
+    passing_totals = (
+        passing_totals
+        .groupby(
+            ["player_id", "player_name", "team_name"],
+            as_index=False,
+        )
+        .sum(numeric_only=True)
+    )
+
+    print()
+    print("PASSING SEASON TEST")
+    print(
+        passing_totals.head().to_string(
+            index=False
+        )
+    )
+    print()
 
     # combine minutes from every match
     minutes = pd.concat(
@@ -156,6 +193,25 @@ def main():
         how="left",
     )
 
+    # remove passing stats we already have
+    passing_totals = passing_totals.drop(
+        columns=[
+            "passes",
+            "completed_passes",
+        ],
+    )
+
+    # add detailed passing stats
+    players = players.merge(
+        passing_totals,
+        on=[
+            "player_id",
+            "player_name",
+            "team_name",
+        ],
+        how="left",
+    )
+
     # players with no recorded stats should have 0
     stat_columns = [
         "passes",
@@ -166,6 +222,23 @@ def main():
         "interceptions",
         "ball_recoveries",
         "xg",
+        "forward_passes",
+        "completed_forward_passes",
+        "final_third_passes",
+        "completed_final_third_passes",
+        "final_third_entries",
+        "completed_final_third_entries",
+        "progressive_passes",
+        "completed_progressive_passes",
+        "penalty_box_entries",
+        "completed_penalty_box_entries",
+        "long_passes",
+        "completed_long_passes",
+        "crosses",
+        "completed_crosses",
+        "shot_assists",
+        "goal_assists",
+        "key_passes",
     ]
 
     players[stat_columns] = (
@@ -193,17 +266,6 @@ def main():
     players.to_csv(
         output_path,
         index=False,
-    )
-
-    print()
-    print(f"Saved: {output_path}")
-    print(f"Players: {len(players)}")
-    print()
-
-    print(
-        players.head(15).to_string(
-            index=False
-        )
     )
 
 

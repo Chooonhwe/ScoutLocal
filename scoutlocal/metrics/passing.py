@@ -153,6 +153,73 @@ def is_progressive_pass(event: dict) -> bool:
 
     return progress_pct >= 0.25
 
+def is_long_pass(event: dict) -> bool:
+    # only check passes
+    if event.get("type", {}).get("name") != "Pass":
+        return False
+
+    pass_data = event.get("pass")
+
+    if not pass_data:
+        return False
+
+    length = pass_data.get("length")
+    height = pass_data.get("height", {}).get("name")
+
+    # need pass length
+    if length is None:
+        return False
+
+    # statsbomb long pass definition
+    return (
+        height == "High Pass"
+        and length > 30
+    )
+
+def is_cross(event: dict) -> bool:
+    # only check passes
+    if event.get("type", {}).get("name") != "Pass":
+        return False
+
+    pass_data = event.get("pass")
+
+    if not pass_data:
+        return False
+
+    return pass_data.get("cross") is True
+
+def is_shot_assist(event: dict) -> bool:
+    # only check passes
+    if event.get("type", {}).get("name") != "Pass":
+        return False
+
+    pass_data = event.get("pass")
+
+    if not pass_data:
+        return False
+
+    return pass_data.get("shot_assist") is True
+
+
+def is_goal_assist(event: dict) -> bool:
+    # only check passes
+    if event.get("type", {}).get("name") != "Pass":
+        return False
+
+    pass_data = event.get("pass")
+
+    if not pass_data:
+        return False
+
+    return pass_data.get("goal_assist") is True
+
+
+def is_key_pass(event: dict) -> bool:
+    return (
+        is_shot_assist(event)
+        or is_goal_assist(event)
+    )
+
 def aggregate_passing(events: list[dict]) -> pd.DataFrame:
     rows = defaultdict(lambda: defaultdict(float))
 
@@ -223,6 +290,32 @@ def aggregate_passing(events: list[dict]) -> pd.DataFrame:
 
             if completed:
                 row["completed_progressive_passes"] += 1
+
+        # long passes
+        if is_long_pass(event):
+            row["long_passes"] += 1
+
+            if completed:
+                row["completed_long_passes"] += 1
+
+        # crosses
+        if is_cross(event):
+            row["crosses"] += 1
+
+            if completed:
+                row["completed_crosses"] += 1
+                
+        # shot assists
+        if is_shot_assist(event):
+            row["shot_assists"] += 1
+
+        # goal assists
+        if is_goal_assist(event):
+            row["goal_assists"] += 1
+
+        # key passes
+        if is_key_pass(event):
+            row["key_passes"] += 1
 
     # return empty table if there were no passes
     if not rows:

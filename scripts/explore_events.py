@@ -5,13 +5,17 @@ from scoutlocal.metrics.player_metrics import (
     add_per90_metrics,
 )
 
-
 from scoutlocal.metrics.passing import (
     is_forward_pass,
     is_final_third_pass,
     is_final_third_entry,
     is_penalty_box_entry,
     is_progressive_pass,
+    is_long_pass,
+    is_cross,
+    is_shot_assist,
+    is_goal_assist,
+    is_key_pass,
     aggregate_passing,
 )
 
@@ -131,7 +135,11 @@ print("\nPLAYER METRICS + MINUTES\n")
 
 combined = player_metrics.merge(
     player_minutes,
-    on=["player_id", "player_name", "team_name"],
+    on=[
+        "player_id",
+        "player_name",
+        "team_name",
+    ],
     how="left",
 )
 
@@ -157,9 +165,18 @@ for event in events:
 
     print("Player:", event["player"]["name"])
     print("Start:", event.get("location"))
-    print("End:", event.get("pass", {}).get("end_location"))
-    print("Length:", event.get("pass", {}).get("length"))
-    print("Angle:", event.get("pass", {}).get("angle"))
+    print(
+        "End:",
+        event.get("pass", {}).get("end_location"),
+    )
+    print(
+        "Length:",
+        event.get("pass", {}).get("length"),
+    )
+    print(
+        "Angle:",
+        event.get("pass", {}).get("angle"),
+    )
     print()
 
     pass_count += 1
@@ -259,14 +276,31 @@ print("\nPASSING METRICS\n")
 
 passing_metrics = aggregate_passing(events)
 
+# make sure completed stats are not higher than attempts
+assert (
+    passing_metrics["completed_progressive_passes"]
+    <= passing_metrics["progressive_passes"]
+).all()
+
 assert (
     passing_metrics["completed_penalty_box_entries"]
     <= passing_metrics["penalty_box_entries"]
 ).all()
 
 assert (
-    passing_metrics["completed_progressive_passes"]
-    <= passing_metrics["progressive_passes"]
+    passing_metrics["completed_long_passes"]
+    <= passing_metrics["long_passes"]
+).all()
+assert (
+    passing_metrics["completed_crosses"]
+    <= passing_metrics["crosses"]
+).all()
+assert (
+    passing_metrics["key_passes"]
+    == (
+        passing_metrics["shot_assists"]
+        + passing_metrics["goal_assists"]
+    )
 ).all()
 print(
     passing_metrics.sort_values(
@@ -275,6 +309,7 @@ print(
     ).to_string(index=False)
 )
 
+# find some progressive passes
 print("\nPROGRESSIVE PASSES\n")
 
 progressive_count = 0
@@ -311,10 +346,11 @@ for event in events:
     print()
 
     progressive_count += 1
-
+    # only checking 10 passes
     if progressive_count == 10:
         break
 
+# find some passes that enter the penalty box
 print("\nPENALTY BOX ENTRIES\n")
 
 box_entry_count = 0
@@ -338,6 +374,215 @@ for event in events:
     print()
 
     box_entry_count += 1
-
+     # only checking 10 passes
     if box_entry_count == 10:
         break
+
+# check statsbomb pass length and height
+print("\nPASS LENGTH AND HEIGHT\n")
+
+pass_count = 0
+
+for event in events:
+    if event.get("type", {}).get("name") != "Pass":
+        continue
+
+    pass_data = event.get("pass", {})
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event.get("location"))
+    print("End:", pass_data.get("end_location"))
+    print("Length:", pass_data.get("length"))
+
+    print(
+        "Height:",
+        pass_data.get("height", {}).get("name"),
+    )
+
+    print(
+        "Completed:",
+        pass_data.get("outcome") is None,
+    )
+
+    print()
+
+    pass_count += 1
+
+    # only checking 15 passes
+    if pass_count == 15:
+        break
+
+
+# find some long passes
+print("\nLONG PASSES\n")
+
+long_pass_count = 0
+
+for event in events:
+    if not is_long_pass(event):
+        continue
+
+    pass_data = event["pass"]
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event["location"])
+    print("End:", pass_data["end_location"])
+    print("Length:", pass_data["length"])
+
+    print(
+        "Height:",
+        pass_data.get("height", {}).get("name"),
+    )
+
+    print(
+        "Completed:",
+        pass_data.get("outcome") is None,
+    )
+
+    print(
+        "Play pattern:",
+        event.get("play_pattern", {})
+        .get("name"),
+    )
+
+    print()
+
+    long_pass_count += 1
+
+    # only checking 15 passes
+    if long_pass_count == 15:
+        break
+
+# find some crosses
+print("\nCROSSES\n")
+
+cross_count = 0
+
+for event in events:
+    if event.get("type", {}).get("name") != "Pass":
+        continue
+
+    pass_data = event.get("pass", {})
+
+    if not pass_data.get("cross"):
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event.get("location"))
+    print("End:", pass_data.get("end_location"))
+
+    print(
+        "Completed:",
+        pass_data.get("outcome") is None,
+    )
+
+    print(
+        "Play pattern:",
+        event.get("play_pattern", {})
+        .get("name"),
+    )
+
+    print(
+        "Pass type:",
+        pass_data.get("type", {}).get("name"),
+    )
+
+    print()
+
+    cross_count += 1
+
+    # only checking 15 crosses
+    if cross_count == 15:
+        break
+
+    # check what statsbomb gives for shot assists
+print("\nSHOT ASSISTS\n")
+
+shot_assist_count = 0
+
+for event in events:
+    if event.get("type", {}).get("name") != "Pass":
+        continue
+
+    pass_data = event.get("pass", {})
+
+    if not pass_data.get("shot_assist"):
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event.get("location"))
+    print("End:", pass_data.get("end_location"))
+
+    print(
+        "Completed:",
+        pass_data.get("outcome") is None,
+    )
+
+    print(
+        "Goal assist:",
+        pass_data.get("goal_assist"),
+    )
+
+    print(
+        "Assisted shot ID:",
+        pass_data.get("assisted_shot_id"),
+    )
+
+    print(
+        "Play pattern:",
+        event.get("play_pattern", {})
+        .get("name"),
+    )
+
+    print()
+
+    shot_assist_count += 1
+
+    # only checking 15 shot assists
+    if shot_assist_count == 15:
+        break
+
+    # check goal assists
+print("\nGOAL ASSISTS\n")
+
+goal_assist_count = 0
+
+for event in events:
+    if event.get("type", {}).get("name") != "Pass":
+        continue
+
+    pass_data = event.get("pass", {})
+
+    if not pass_data.get("goal_assist"):
+        continue
+
+    print("Player:", event["player"]["name"])
+    print("Start:", event.get("location"))
+    print("End:", pass_data.get("end_location"))
+
+    print(
+        "Shot assist:",
+        pass_data.get("shot_assist"),
+    )
+
+    print(
+        "Goal assist:",
+        pass_data.get("goal_assist"),
+    )
+
+    print(
+        "Assisted shot ID:",
+        pass_data.get("assisted_shot_id"),
+    )
+
+    print(
+        "Play pattern:",
+        event.get("play_pattern", {})
+        .get("name"),
+    )
+
+    print()
+
+    goal_assist_count += 1
+
+print("Total goal assists:", goal_assist_count)
