@@ -58,7 +58,13 @@ stat_columns = [
     "shot_assists",
     "goal_assists",
     "key_passes",
-]
+    "forward_carries",
+    "progressive_carries",
+    "final_third_carry_entries",
+    "penalty_box_carry_entries",
+    "carry_distance",
+    "forward_carry_distance",
+    ]
 
 for column in stat_columns:
     negative_count = (df[column] < 0).sum()
@@ -238,3 +244,47 @@ print(
         ]
     ].to_string(index=False)
 )
+
+# check carrying stats
+print("\nCARRYING CHECK")
+
+carrying_checks = [
+    "forward_carries",
+    "progressive_carries",
+    "final_third_carry_entries",
+    "penalty_box_carry_entries",
+]
+
+for column in carrying_checks:
+    bad = df[df[column] > df["carries"]]
+
+    if bad.empty:
+        print(f"{column}: valid")
+    else:
+        print(f"{column}: INVALID")
+
+# check carrying distance
+print("\nCARRY DISTANCE CHECK")
+
+bad_distance = df[
+    (df["carry_distance"] < 0)
+    | (df["forward_carry_distance"] < 0)
+    | (
+        df["forward_carry_distance"]
+        > df["carry_distance"] + 0.000001
+    )
+]
+
+if bad_distance.empty:
+    print("Carry distances: valid")
+else:
+    print("Carry distances: INVALID")
+    print(
+        bad_distance[
+            [
+                "player_name",
+                "carry_distance",
+                "forward_carry_distance",
+            ]
+        ].to_string(index=False)
+    )

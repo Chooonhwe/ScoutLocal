@@ -19,6 +19,8 @@ from scoutlocal.metrics.passing import (
     aggregate_passing,
 )
 
+from scoutlocal.metrics.carrying import is_progressive_carry
+
 # get statsbomb data
 client = StatsBombOpenData()
 
@@ -149,7 +151,7 @@ print(combined)
 # add per 90 stats so playing time is more fair
 print("\nPLAYER METRICS PER 90\n")
 
-combined = add_per90_metrics(combined)
+#combined = add_per90_metrics(combined)
 
 print(combined)
 
@@ -586,3 +588,182 @@ for event in events:
     goal_assist_count += 1
 
 print("Total goal assists:", goal_assist_count)
+
+print("\nCARRY EXAMPLE")
+
+for event in events:
+    if event.get("type", {}).get("name") == "Carry":
+        print(event)
+        break
+
+print("\nLONGEST CARRY EXAMPLES")
+
+carry_examples = []
+
+for event in events:
+    if event.get("type", {}).get("name") != "Carry":
+        continue
+
+    start = event.get("location")
+    end = event.get("carry", {}).get("end_location")
+
+    if not start or not end:
+        continue
+
+    distance = (
+        (end[0] - start[0]) ** 2
+        + (end[1] - start[1]) ** 2
+    ) ** 0.5
+
+    carry_examples.append(
+        (
+            distance,
+            event.get("player", {}).get("name"),
+            start,
+            end,
+            event.get("play_pattern", {}).get("name"),
+        )
+    )
+
+carry_examples.sort(reverse=True)
+
+for carry in carry_examples[:10]:
+    print(carry)
+
+print("\nPROGRESSIVE CARRY EXAMPLES")
+
+count = 0
+
+for event in events:
+    if is_progressive_carry(event):
+        print(
+            event.get("player", {}).get("name"),
+            event.get("location"),
+            event.get("carry", {}).get("end_location"),
+        )
+
+        count += 1
+
+        if count == 10:
+            break
+
+from scoutlocal.metrics.carrying import is_forward_carry
+
+print("\nFORWARD CARRY TEST")
+
+total_carries = 0
+forward_carries = 0
+progressive_carries = 0
+
+for event in events:
+    if event.get("type", {}).get("name") != "Carry":
+        continue
+
+    total_carries += 1
+
+    if is_forward_carry(event):
+        forward_carries += 1
+
+    if is_progressive_carry(event):
+        progressive_carries += 1
+
+print("Total carries:", total_carries)
+print("Forward carries:", forward_carries)
+print("Progressive carries:", progressive_carries)
+
+assert forward_carries <= total_carries
+assert progressive_carries <= total_carries
+
+from scoutlocal.metrics.carrying import is_final_third_carry_entry
+
+print("\nFINAL THIRD CARRY ENTRY TEST")
+
+final_third_entries = 0
+
+for event in events:
+    if is_final_third_carry_entry(event):
+        final_third_entries += 1
+
+print("Final third carry entries:", final_third_entries)
+
+assert final_third_entries <= total_carries
+
+from scoutlocal.metrics.carrying import is_penalty_box_carry_entry
+
+print("\nPENALTY BOX CARRY ENTRY TEST")
+
+penalty_box_carry_entries = 0
+
+for event in events:
+    if is_penalty_box_carry_entry(event):
+        penalty_box_carry_entries += 1
+
+print("Penalty box carry entries:", penalty_box_carry_entries)
+
+assert penalty_box_carry_entries <= total_carries
+
+from scoutlocal.metrics.carrying import (
+    get_carry_distance,
+    get_forward_carry_distance,
+)
+
+print("\nCARRY DISTANCE TEST")
+
+total_distance = 0.0
+forward_distance = 0.0
+
+for event in events:
+    total_distance += get_carry_distance(event)
+    forward_distance += get_forward_carry_distance(event)
+
+print("Total carry distance:", round(total_distance, 2))
+print("Forward carry distance:", round(forward_distance, 2))
+
+assert total_distance >= 0
+assert forward_distance >= 0
+assert forward_distance <= total_distance + 0.000001
+
+from scoutlocal.metrics.carrying import aggregate_carrying
+
+print("\nCARRYING AGGREGATION TEST")
+
+carrying_metrics = aggregate_carrying(events)
+
+print(
+    carrying_metrics.sort_values(
+        "progressive_carries",
+        ascending=False,
+    ).head(10).to_string(index=False)
+)
+
+assert carrying_metrics["carries"].sum() == total_carries
+
+assert (
+    carrying_metrics["forward_carries"].sum()
+    == forward_carries
+)
+
+assert (
+    carrying_metrics["progressive_carries"].sum()
+    == progressive_carries
+)
+
+assert (
+    carrying_metrics["final_third_carry_entries"].sum()
+    == final_third_entries
+)
+
+assert (
+    carrying_metrics["penalty_box_carry_entries"].sum()
+    == penalty_box_carry_entries
+)
+
+assert abs(
+    carrying_metrics["carry_distance"].sum()
+    - total_distance
+) < 0.000001
+
+assert abs(
+    carrying_metrics["forward_carry_distance"].sum()
+    - forward_distance
+) < 0.000001

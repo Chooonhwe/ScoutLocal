@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import argparse
@@ -12,6 +13,7 @@ from scoutlocal.metrics.player_metrics import (
     add_per90_metrics,
 )
 from scoutlocal.metrics.passing import aggregate_passing
+from scoutlocal.metrics.carrying import aggregate_carrying
 
 
 def parse_args():
@@ -55,6 +57,7 @@ def main():
 
     all_totals = []
     all_passing = []
+    all_carrying = []
     all_minutes = []
 
     print(f"Processing {len(matches)} matches...")
@@ -77,6 +80,9 @@ def main():
         # calculate passing stats
         passing_metrics = aggregate_passing(events)
 
+        # calculate carrying stats
+        carrying_metrics = aggregate_carrying(events)
+
         # calculate how long each player played
         minute_metrics = calculate_minutes(events)
 
@@ -85,6 +91,9 @@ def main():
 
         if not passing_metrics.empty:
             all_passing.append(passing_metrics)
+
+        if not carrying_metrics.empty:
+            all_carrying.append(carrying_metrics)
 
         if not minute_metrics.empty:
             all_minutes.append(minute_metrics)
@@ -99,6 +108,12 @@ def main():
     if not all_passing:
         raise RuntimeError(
             "No player passing data was produced."
+        )
+
+    # stop if no carrying stats were found
+    if not all_carrying:
+        raise RuntimeError(
+            "No player carrying data was produced."
         )
 
     # stop if no player minutes were found
@@ -123,6 +138,7 @@ def main():
         .sum(numeric_only=True)
     )
 
+    # combine passing stats from every match
     passing_totals = pd.concat(
         all_passing,
         ignore_index=True,
@@ -137,14 +153,20 @@ def main():
         .sum(numeric_only=True)
     )
 
-    print()
-    print("PASSING SEASON TEST")
-    print(
-        passing_totals.head().to_string(
-            index=False
-        )
+    # combine carrying stats from every match
+    carrying_totals = pd.concat(
+        all_carrying,
+        ignore_index=True,
     )
-    print()
+
+    carrying_totals = (
+        carrying_totals
+        .groupby(
+            ["player_id", "player_name", "team_name"],
+            as_index=False,
+        )
+        .sum(numeric_only=True)
+    )
 
     # combine minutes from every match
     minutes = pd.concat(
@@ -212,6 +234,22 @@ def main():
         how="left",
     )
 
+    # remove carries we already have
+    carrying_totals = carrying_totals.drop(
+        columns=["carries"],
+    )
+
+    # add detailed carrying stats
+    players = players.merge(
+        carrying_totals,
+        on=[
+            "player_id",
+            "player_name",
+            "team_name",
+        ],
+        how="left",
+    )
+
     # players with no recorded stats should have 0
     stat_columns = [
         "passes",
@@ -239,7 +277,18 @@ def main():
         "shot_assists",
         "goal_assists",
         "key_passes",
+        "forward_carries",
+        "progressive_carries",
+        "final_third_carry_entries",
+        "penalty_box_carry_entries",
+        "carry_distance",
+        "forward_carry_distance",
     ]
+
+    # add missing stat columns as 0
+    for column in stat_columns:
+        if column not in players.columns:
+            players[column] = 0.0
 
     players[stat_columns] = (
         players[stat_columns].fillna(0)
@@ -266,6 +315,17 @@ def main():
     players.to_csv(
         output_path,
         index=False,
+    )
+
+    print()
+    print(f"Saved: {output_path}")
+    print(f"Players: {len(players)}")
+    print()
+
+    print(
+        players.head(15).to_string(
+            index=False
+        )
     )
 
 

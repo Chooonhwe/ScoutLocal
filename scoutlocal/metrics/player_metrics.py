@@ -121,6 +121,12 @@ def add_per90_metrics(df: pd.DataFrame) -> pd.DataFrame:
         "shot_assists",
         "goal_assists",
         "key_passes",
+        "forward_carries",
+        "progressive_carries",
+        "final_third_carry_entries",
+        "penalty_box_carry_entries",
+        "carry_distance",
+        "forward_carry_distance",
     ]
 
     for column in source_columns:
