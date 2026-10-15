@@ -20,13 +20,42 @@ from scoutlocal.metrics.passing import (
 )
 
 from scoutlocal.metrics.carrying import is_progressive_carry
-
+from scoutlocal.metrics.shooting import (
+    is_shot_on_target,
+    is_goal,
+    is_shot_inside_box,
+    get_non_penalty_xg,
+    is_shot_body_part,
+    aggregate_shooting,
+)
 # get statsbomb data
 client = StatsBombOpenData()
 
 # using this match to test first
 events = client.events(3827336)
+# look at shot events
+shots = [
+    event for event in events
+    if event.get("type", {}).get("name") == "Shot"
+]
 
+print(f"Total shots: {len(shots)}")
+
+# show the first shot
+if shots:
+    from pprint import pprint
+    pprint(shots[0])
+# check all shot outcomes
+shot_outcomes = set()
+
+for shot in shots:
+    outcome = shot.get("shot", {}).get("outcome", {}).get("name")
+
+    if outcome:
+        shot_outcomes.add(outcome)
+
+print("\nSHOT OUTCOMES\n")
+print(shot_outcomes)
 
 # see how many events there are
 print("Total events:", len(events))
@@ -40,7 +69,15 @@ for event in events:
 
 print("\nEVENT TYPES\n")
 print(event_types)
+# test shots on target
+shots_on_target = [
+    shot for shot in shots
+    if is_shot_on_target(shot)
+]
 
+print("\nSHOOTING TEST\n")
+print("Total shots:", len(shots))
+print("Shots on target:", len(shots_on_target))
 
 # check what each event type contains
 print("\nEVENT STRUCTURES\n")
@@ -767,3 +804,111 @@ assert abs(
     carrying_metrics["forward_carry_distance"].sum()
     - forward_distance
 ) < 0.000001
+
+# test goals
+goals = [
+    shot for shot in shots
+    if is_goal(shot)
+]
+
+print("\nGOALS TEST\n")
+print("Total goals:", len(goals))
+# test shots inside penalty box
+inside_box_shots = [
+    shot for shot in shots
+    if is_shot_inside_box(shot)
+]
+
+print("\nSHOTS INSIDE BOX TEST\n")
+print("Shots inside box:", len(inside_box_shots))
+print("Shots outside box:", len(shots) - len(inside_box_shots))
+
+# test non penalty xg
+total_xg = sum(
+    shot.get("shot", {}).get("statsbomb_xg", 0.0)
+    for shot in shots
+)
+
+non_penalty_xg = sum(
+    get_non_penalty_xg(shot)
+    for shot in shots
+)
+
+print("\nNON PENALTY XG TEST\n")
+print(f"Total xG: {total_xg:.2f}")
+print(f"Non penalty xG: {non_penalty_xg:.2f}")
+print(f"Penalty xG: {total_xg - non_penalty_xg:.2f}")
+
+# test shot body parts
+body_parts = set()
+
+for shot in shots:
+    body_part = shot.get("shot", {}).get("body_part", {}).get("name")
+
+    if body_part:
+        body_parts.add(body_part)
+
+print("\nSHOT BODY PART TEST\n")
+
+for body_part in sorted(body_parts):
+    count = sum(
+        is_shot_body_part(shot, body_part)
+        for shot in shots
+    )
+
+    print(f"{body_part}: {count}")
+
+    # test shooting aggregation
+shooting_df = aggregate_shooting(events)
+
+print("\nSHOOTING AGGREGATION TEST\n")
+print(
+    shooting_df.sort_values(
+        "shots_on_target",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal shots on target:", shooting_df["shots_on_target"].sum())
+# test player goals aggregation
+print("\nPLAYER GOALS TEST\n")
+
+print(
+    shooting_df[shooting_df["goals"] > 0][
+        ["player_name", "team_name", "goals"]
+    ].to_string(index=False)
+)
+
+print("\nTotal goals:", shooting_df["goals"].sum())
+# test player shots inside box aggregation
+print("\nPLAYER SHOTS INSIDE BOX TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "shots_inside_box"]
+    ].sort_values(
+        "shots_inside_box",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal shots inside box:", shooting_df["shots_inside_box"].sum())
+# test player non penalty xg aggregation
+print("\nPLAYER NON PENALTY XG TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "non_penalty_xg"]
+    ].sort_values(
+        "non_penalty_xg",
+        ascending=False
+    ).to_string(
+        index=False,
+        float_format=lambda x: f"{x:.2f}"
+    )
+)
+
+print(
+    "\nTotal non penalty xg:",
+    f"{shooting_df['non_penalty_xg'].sum():.2f}"
+)
