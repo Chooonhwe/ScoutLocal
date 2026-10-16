@@ -1,3 +1,4 @@
+
 import pandas as pd
 
 
@@ -64,7 +65,16 @@ stat_columns = [
     "penalty_box_carry_entries",
     "carry_distance",
     "forward_carry_distance",
-    ]
+    "shots_on_target",
+    "goals",
+    "non_penalty_goals",
+    "shots_inside_box",
+    "non_penalty_xg",
+    "headed_shots",
+    "left_footed_shots",
+    "right_footed_shots",
+    "other_shots",
+]
 
 for column in stat_columns:
     negative_count = (df[column] < 0).sum()
@@ -245,6 +255,7 @@ print(
     ].to_string(index=False)
 )
 
+
 # check carrying stats
 print("\nCARRYING CHECK")
 
@@ -262,6 +273,7 @@ for column in carrying_checks:
         print(f"{column}: valid")
     else:
         print(f"{column}: INVALID")
+
 
 # check carrying distance
 print("\nCARRY DISTANCE CHECK")
@@ -286,5 +298,217 @@ else:
                 "carry_distance",
                 "forward_carry_distance",
             ]
+        ].to_string(index=False)
+    )
+
+
+# check if all shots have a body part
+print("\nSHOOTING BODY PART CHECK")
+
+body_part_shots = (
+    df["headed_shots"]
+    + df["left_footed_shots"]
+    + df["right_footed_shots"]
+    + df["other_shots"]
+)
+
+print("Total shots:", int(df["shots"].sum()))
+print("Body part shots:", int(body_part_shots.sum()))
+print("Other shots:", int(df["other_shots"].sum()))
+
+bad_body_parts = df[
+    body_part_shots != df["shots"]
+]
+
+if bad_body_parts.empty:
+    print("All shooting body part totals are valid")
+else:
+    print("Shooting body part totals: INVALID")
+
+    print(
+        bad_body_parts[
+            [
+                "player_name",
+                "team_name",
+                "shots",
+                "headed_shots",
+                "left_footed_shots",
+                "right_footed_shots",
+                "other_shots",
+            ]
+        ].to_string(index=False)
+    )
+
+
+# check shooting counts
+print("\nSHOOTING COUNT CHECK")
+
+shooting_checks = [
+    ("shots_on_target", "shots"),
+    ("goals", "shots_on_target"),
+    ("non_penalty_goals", "goals"),
+    ("shots_inside_box", "shots"),
+    ("headed_shots", "shots"),
+    ("left_footed_shots", "shots"),
+    ("right_footed_shots", "shots"),
+    ("other_shots", "shots"),
+]
+
+for count_column, total_column in shooting_checks:
+    bad = df[
+        df[count_column] > df[total_column]
+    ]
+
+    if bad.empty:
+        print(f"{count_column}: valid")
+    else:
+        print(f"{count_column}: INVALID")
+
+        print(
+            bad[
+                [
+                    "player_name",
+                    count_column,
+                    total_column,
+                ]
+            ].to_string(index=False)
+        )
+
+
+# check non penalty xg
+print("\nNON PENALTY XG CHECK")
+
+bad_non_penalty_xg = df[
+    df["non_penalty_xg"] > df["xg"] + 0.000001
+]
+
+if bad_non_penalty_xg.empty:
+    print("Non penalty xg: valid")
+else:
+    print("Non penalty xg: INVALID")
+
+    print(
+        bad_non_penalty_xg[
+            [
+                "player_name",
+                "xg",
+                "non_penalty_xg",
+            ]
+        ].to_string(index=False)
+    )
+
+
+# check shooting accuracy
+print("\nSHOOTING ACCURACY CHECK")
+
+expected_accuracy = (
+    df["shots_on_target"]
+    .div(df["shots"].replace(0, float("nan")))
+    .mul(100)
+    .fillna(0)
+)
+
+bad_accuracy = df[
+    (df["shooting_accuracy"] - expected_accuracy).abs() > 0.011
+]
+
+if bad_accuracy.empty:
+    print("Shooting accuracy: valid")
+else:
+    print("Shooting accuracy: INVALID")
+
+
+# check goal conversion rate
+print("\nGOAL CONVERSION CHECK")
+
+expected_conversion = (
+    df["goals"]
+    .div(df["shots"].replace(0, float("nan")))
+    .mul(100)
+    .fillna(0)
+)
+
+bad_conversion = df[
+    (df["goal_conversion_rate"] - expected_conversion).abs() > 0.011
+]
+
+if bad_conversion.empty:
+    print("Goal conversion rate: valid")
+else:
+    print("Goal conversion rate: INVALID")
+
+
+# check xg per shot
+print("\nXG PER SHOT CHECK")
+
+expected_xg_per_shot = (
+    df["xg"]
+    .div(df["shots"].replace(0, float("nan")))
+    .fillna(0)
+)
+
+bad_xg_per_shot = df[
+    (df["xg_per_shot"] - expected_xg_per_shot).abs() > 0.011
+]
+
+if bad_xg_per_shot.empty:
+    print("Xg per shot: valid")
+else:
+    print("Xg per shot: INVALID")
+
+
+# check goals minus xg
+print("\nGOALS MINUS XG CHECK")
+
+expected_goals_minus_xg = (
+    df["goals"] - df["xg"]
+)
+
+bad_goals_minus_xg = df[
+    (df["goals_minus_xg"] - expected_goals_minus_xg).abs() > 0.011
+]
+
+if bad_goals_minus_xg.empty:
+    print("Goals minus xg: valid")
+else:
+    print("Goals minus xg: INVALID")
+
+
+# check non penalty goals minus xg
+print("\nNON PENALTY GOALS MINUS XG CHECK")
+
+expected_non_penalty_difference = (
+    df["non_penalty_goals"] - df["non_penalty_xg"]
+)
+
+bad_non_penalty_difference = df[
+    (
+        df["non_penalty_goals_minus_xg"]
+        - expected_non_penalty_difference
+    ).abs() > 0.011
+]
+
+if bad_non_penalty_difference.empty:
+    print("Non penalty goals minus xg: valid")
+else:
+    print("Non penalty goals minus xg: INVALID")
+
+
+# check missing team ids
+print("\nTEAM ID CHECK")
+
+missing_team_ids = df["team_id"].isna().sum()
+
+print("Missing team ids:", missing_team_ids)
+
+if missing_team_ids == 0:
+    print("All team ids: valid")
+else:
+    print("Team ids: INVALID")
+
+    print(
+        df.loc[
+            df["team_id"].isna(),
+            ["player_id", "player_name", "team_name"],
         ].to_string(index=False)
     )

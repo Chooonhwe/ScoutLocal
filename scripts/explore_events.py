@@ -912,3 +912,123 @@ print(
     "\nTotal non penalty xg:",
     f"{shooting_df['non_penalty_xg'].sum():.2f}"
 )
+
+# test player headed shots aggregation
+print("\nPLAYER HEADED SHOTS TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "headed_shots"]
+    ].sort_values(
+        "headed_shots",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal headed shots:", shooting_df["headed_shots"].sum())
+
+# testinng player left foot shots aggregation
+print("\nPLAYER LEFT FOOT SHOTS TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "left_footed_shots"]
+    ].sort_values(
+        "left_footed_shots",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal left foot shots:", shooting_df["left_footed_shots"].sum())
+
+# test player right foot shots aggregation
+print("\nPLAYER RIGHT FOOT SHOTS TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "right_footed_shots"]
+    ].sort_values(
+        "right_footed_shots",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal right foot shots:", shooting_df["right_footed_shots"].sum())
+
+# test player total shots aggregation
+print("\nPLAYER TOTAL SHOTS TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "total_shots"]
+    ].sort_values(
+        "total_shots",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal shots:", shooting_df["total_shots"].sum())
+
+# test player shooting accuracy
+print("\nPLAYER SHOOTING ACCURACY TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "total_shots", "shots_on_target", "shooting_accuracy"]
+    ].sort_values(
+        "shooting_accuracy",
+        ascending=False
+    ).to_string(index=False)
+)
+
+# test player goal conversion rate
+print("\nPLAYER GOAL CONVERSION RATE TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "total_shots", "goals", "goal_conversion_rate"]
+    ].sort_values(
+        "goal_conversion_rate",
+        ascending=False
+    ).to_string(index=False)
+)
+
+# test player xg per shot
+print("\nPLAYER XG PER SHOT TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "total_shots", "total_xg", "xg_per_shot"]
+    ].sort_values(
+        "xg_per_shot",
+        ascending=False
+    ).to_string(index=False)
+)
+
+# test player goals minus xg
+print("\nPLAYER GOALS MINUS XG TEST\n")
+
+print(
+    shooting_df[
+        ["player_name", "goals", "total_xg", "goals_minus_xg"]
+    ].sort_values(
+        "goals_minus_xg",
+        ascending=False
+    ).to_string(index=False)
+)
+# test player non penalty goals minus xg
+print("\nPLAYER NON PENALTY GOALS MINUS XG TEST\n")
+
+print(
+    shooting_df[
+        [
+            "player_name",
+            "non_penalty_goals",
+            "non_penalty_xg",
+            "non_penalty_goals_minus_xg",
+        ]
+    ].sort_values(
+        "non_penalty_goals_minus_xg",
+        ascending=False
+    ).to_string(index=False)
+)

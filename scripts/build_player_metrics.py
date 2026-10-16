@@ -14,6 +14,7 @@ from scoutlocal.metrics.player_metrics import (
 )
 from scoutlocal.metrics.passing import aggregate_passing
 from scoutlocal.metrics.carrying import aggregate_carrying
+from scoutlocal.metrics.shooting import aggregate_shooting
 
 
 def parse_args():
@@ -58,7 +59,11 @@ def main():
     all_totals = []
     all_passing = []
     all_carrying = []
+    all_shooting = []
     all_minutes = []
+
+    # map players to their teams
+    team_lookup = {}
 
     print(f"Processing {len(matches)} matches...")
 
@@ -74,6 +79,45 @@ def main():
         # get all events from the match
         events = client.events(match_id)
 
+        # get team ids from player events
+        for event in events:
+            player = event.get("player") or {}
+            team = event.get("team") or {}
+
+            player_id = player.get("id")
+            team_id = team.get("id")
+            team_name = team.get("name")
+
+            if team_id is None or team_name is None:
+                continue
+
+            if player_id is not None:
+                team_lookup[(player_id, team_name)] = team_id
+
+            # get team ids from starting lineups
+            if event.get("type", {}).get("name") == "Starting XI":
+                lineup = event.get("tactics", {}).get("lineup", [])
+
+                for lineup_player in lineup:
+                    lineup_id = (
+                        lineup_player.get("player", {}).get("id")
+                    )
+
+                    if lineup_id is not None:
+                        team_lookup[(lineup_id, team_name)] = team_id
+
+            # get team ids from substitutions
+            if event.get("type", {}).get("name") == "Substitution":
+                replacement = (
+                    event.get("substitution", {})
+                    .get("replacement", {})
+                )
+
+                replacement_id = replacement.get("id")
+
+                if replacement_id is not None:
+                    team_lookup[(replacement_id, team_name)] = team_id
+
         # calculate player stats
         event_metrics = aggregate_events(events)
 
@@ -82,6 +126,9 @@ def main():
 
         # calculate carrying stats
         carrying_metrics = aggregate_carrying(events)
+
+        # calculate shooting stats
+        shooting_metrics = aggregate_shooting(events)
 
         # calculate how long each player played
         minute_metrics = calculate_minutes(events)
@@ -94,6 +141,9 @@ def main():
 
         if not carrying_metrics.empty:
             all_carrying.append(carrying_metrics)
+
+        if not shooting_metrics.empty:
+            all_shooting.append(shooting_metrics)
 
         if not minute_metrics.empty:
             all_minutes.append(minute_metrics)
@@ -167,6 +217,43 @@ def main():
         )
         .sum(numeric_only=True)
     )
+
+    # combine shooting stats from every match
+    if all_shooting:
+        shooting_totals = pd.concat(
+            all_shooting,
+            ignore_index=True,
+        )
+
+        # remove match level percentages before combining
+        shooting_totals = shooting_totals.drop(
+            columns=[
+                "shooting_accuracy",
+                "goal_conversion_rate",
+                "xg_per_shot",
+                "goals_minus_xg",
+                "non_penalty_goals_minus_xg",
+            ],
+            errors="ignore",
+        )
+
+        # add together each player's shooting totals
+        shooting_totals = (
+            shooting_totals
+            .groupby(
+                ["player_id", "player_name", "team_name"],
+                as_index=False,
+            )
+            .sum(numeric_only=True)
+        )
+    else:
+        shooting_totals = pd.DataFrame(
+            columns=[
+                "player_id",
+                "player_name",
+                "team_name",
+            ]
+        )
 
     # combine minutes from every match
     minutes = pd.concat(
@@ -250,6 +337,72 @@ def main():
         how="left",
     )
 
+    # validate shooting totals against basic metrics
+    print("\nSHOOTING DATA VALIDATION")
+
+    print(
+        "Basic total shots:",
+        int(totals["shots"].sum())
+    )
+
+    print(
+        "Shooting total shots:",
+        int(shooting_totals["total_shots"].sum()) if all_shooting else 0
+    )
+
+    print(
+        "Basic total xg:",
+        round(totals["xg"].sum(), 2)
+    )
+
+    print(
+        "Shooting total xg:",
+        round(shooting_totals["total_xg"].sum(), 2) if all_shooting else 0.0
+    )
+
+    # remove shooting stats already in basic metrics
+    shooting_totals = shooting_totals.drop(
+        columns=[
+            "total_shots",
+            "total_xg",
+            "team_id",
+        ],
+        errors="ignore",
+    )
+
+    # add detailed shooting stats
+    players = players.merge(
+        shooting_totals,
+        on=[
+            "player_id",
+            "player_name",
+            "team_name",
+        ],
+        how="left",
+    )
+
+    # add team id for every player
+    players["team_id"] = [
+        team_lookup.get((row.player_id, row.team_name))
+        for row in players.itertuples(index=False)
+    ]
+
+    # check for missing team ids
+    missing_team_ids = int(players["team_id"].isna().sum())
+
+    print(
+        "Missing team ids:",
+        missing_team_ids
+    )
+
+    if missing_team_ids:
+        print(
+            players.loc[
+                players["team_id"].isna(),
+                ["player_id", "player_name", "team_name"],
+            ].to_string(index=False)
+        )
+
     # players with no recorded stats should have 0
     stat_columns = [
         "passes",
@@ -283,6 +436,15 @@ def main():
         "penalty_box_carry_entries",
         "carry_distance",
         "forward_carry_distance",
+        "shots_on_target",
+        "goals",
+        "non_penalty_goals",
+        "shots_inside_box",
+        "non_penalty_xg",
+        "headed_shots",
+        "left_footed_shots",
+        "right_footed_shots",
+        "other_shots",
     ]
 
     # add missing stat columns as 0
@@ -292,6 +454,71 @@ def main():
 
     players[stat_columns] = (
         players[stat_columns].fillna(0)
+    )
+
+    # calculate season shooting accuracy
+    players["shooting_accuracy"] = (
+        players["shots_on_target"]
+        .div(players["shots"].replace(0, float("nan")))
+        .mul(100)
+        .fillna(0)
+        .round(2)
+    )
+
+    # calculate season goal conversion rate
+    players["goal_conversion_rate"] = (
+        players["goals"]
+        .div(players["shots"].replace(0, float("nan")))
+        .mul(100)
+        .fillna(0)
+        .round(2)
+    )
+
+    # calculate season xg per shot
+    players["xg_per_shot"] = (
+        players["xg"]
+        .div(players["shots"].replace(0, float("nan")))
+        .fillna(0)
+        .round(2)
+    )
+
+    # calculate season goals minus xg
+    players["goals_minus_xg"] = (
+        players["goals"] - players["xg"]
+    ).round(2)
+
+    # calculate season non penalty goals minus xg
+    players["non_penalty_goals_minus_xg"] = (
+        players["non_penalty_goals"]
+        - players["non_penalty_xg"]
+    ).round(2)
+
+    # validate shooting body part totals
+    body_part_shots = (
+        players["headed_shots"]
+        + players["left_footed_shots"]
+        + players["right_footed_shots"]
+        + players["other_shots"]
+    )
+
+    print(
+        "Total shots:",
+        int(players["shots"].sum())
+    )
+
+    print(
+        "Body part shots:",
+        int(body_part_shots.sum())
+    )
+
+    print(
+        "Other shots:",
+        int(players["other_shots"].sum())
+    )
+
+    print(
+        "Total non penalty xg:",
+        round(players["non_penalty_xg"].sum(), 2)
     )
 
     # calculate per 90 stats
