@@ -28,6 +28,15 @@ from scoutlocal.metrics.shooting import (
     is_shot_body_part,
     aggregate_shooting,
 )
+
+from scoutlocal.metrics.defending import is_tackle, is_tackle_won
+from scoutlocal.metrics.defending import (
+    is_tackle,
+    is_tackle_won,
+    is_interception,
+    is_interception_won,
+    aggregate_defending,
+)
 # get statsbomb data
 client = StatsBombOpenData()
 
@@ -1032,3 +1041,273 @@ print(
         ascending=False
     ).to_string(index=False)
 )
+
+
+# inspect tackle events
+tackle_events = [
+    event
+    for event in events
+    if event.get("type", {}).get("name") == "Duel"
+    and event.get("duel", {}).get("type", {}).get("name") == "Tackle"
+]
+
+print("\nTACKLE EVENT TEST\n")
+print("Total tackles:", len(tackle_events))
+
+# check possible tackle outcomes
+tackle_outcomes = {
+    event.get("duel", {}).get("outcome", {}).get("name")
+    for event in tackle_events
+}
+
+print("Tackle outcomes:", tackle_outcomes)
+
+# show examples of tackles
+for event in tackle_events[:5]:
+    print(
+        event.get("player", {}).get("name"),
+        event.get("duel", {}).get("outcome", {}).get("name")
+    )
+
+
+# test tackle functions
+print("\nDEFENDING TACKLE TEST\n")
+
+tackles_attempted = sum(
+    is_tackle(event)
+    for event in events
+)
+
+tackles_won = sum(
+    is_tackle_won(event)
+    for event in events
+)
+
+print("Tackles attempted:", tackles_attempted)
+print("Tackles won:", tackles_won)
+print("Tackles lost:", tackles_attempted - tackles_won)
+
+
+
+# test player defending aggregation
+print("\nPLAYER DEFENDING AGGREGATION TEST\n")
+
+defending_df = aggregate_defending(events)
+
+print(
+    defending_df[
+        ["player_name", "tackles_attempted", "tackles_won"]
+    ].sort_values(
+        "tackles_attempted",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal tackles attempted:", defending_df["tackles_attempted"].sum())
+print("Total tackles won:", defending_df["tackles_won"].sum())
+
+
+# test player tackle success rate
+print("\nPLAYER TACKLE SUCCESS RATE TEST\n")
+
+print(
+    defending_df[
+        [
+            "player_name",
+            "tackles_attempted",
+            "tackles_won",
+            "tackle_success_rate",
+        ]
+    ].sort_values(
+        "tackles_attempted",
+        ascending=False
+    ).to_string(index=False, float_format="%.2f")
+)
+
+# inspect interception events
+interception_events = [
+    event
+    for event in events
+    if event.get("type", {}).get("name") == "Interception"
+]
+
+print("\nINTERCEPTION EVENT TEST\n")
+print("Total interception events:", len(interception_events))
+
+# check possible interception outcomes
+interception_outcomes = {
+    event.get("interception", {})
+    .get("outcome", {})
+    .get("name")
+    for event in interception_events
+}
+
+print("Interception outcomes:", interception_outcomes)
+
+# show interception examples
+for event in interception_events[:5]:
+    print(
+        event.get("player", {}).get("name"),
+        event.get("interception", {})
+        .get("outcome", {})
+        .get("name")
+    )
+# test interception functions
+print("\nDEFENDING INTERCEPTION TEST\n")
+
+interceptions_attempted = sum(
+    is_interception(event)
+    for event in events
+)
+
+interceptions_won = sum(
+    is_interception_won(event)
+    for event in events
+)
+
+print("Interceptions attempted:", interceptions_attempted)
+print("Interceptions won:", interceptions_won)
+print("Interceptions lost:", interceptions_attempted - interceptions_won)
+
+
+# test player interception aggregation
+print("\nPLAYER INTERCEPTION AGGREGATION TEST\n")
+
+defending_df = aggregate_defending(events)
+
+print(
+    defending_df[
+        [
+            "player_name",
+            "interceptions_attempted",
+            "interceptions_won",
+        ]
+    ].sort_values(
+        "interceptions_attempted",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print(
+    "\nTotal interceptions attempted:",
+    defending_df["interceptions_attempted"].sum()
+)
+
+print(
+    "Total interceptions won:",
+    defending_df["interceptions_won"].sum()
+)
+
+print(
+    "Total tackles attempted:",
+    defending_df["tackles_attempted"].sum()
+)
+
+print(
+    "Total tackles won:",
+    defending_df["tackles_won"].sum()
+)
+
+
+# test player interception success rate
+print("\nPLAYER INTERCEPTION SUCCESS RATE TEST\n")
+
+print(
+    defending_df[
+        [
+            "player_name",
+            "interceptions_attempted",
+            "interceptions_won",
+            "interception_success_rate",
+        ]
+    ].sort_values(
+        "interceptions_attempted",
+        ascending=False
+    ).to_string(index=False, float_format="%.2f")
+)
+
+
+# test player block aggregation
+print("\nPLAYER BLOCK AGGREGATION TEST\n")
+
+defending_df = aggregate_defending(events)
+
+print(
+    defending_df[
+        ["player_name", "total_blocks"]
+    ].sort_values(
+        "total_blocks",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print(
+    "\nTotal blocks:",
+    defending_df["total_blocks"].sum()
+)
+
+print(
+    "Total tackles attempted:",
+    defending_df["tackles_attempted"].sum()
+)
+
+print(
+    "Total interceptions attempted:",
+    defending_df["interceptions_attempted"].sum()
+)
+
+
+# inspect block events related to shots
+print("\nBLOCKED SHOT RELATIONSHIP TEST\n")
+
+shot_ids = {
+    event.get("id")
+    for event in events
+    if event.get("type", {}).get("name") == "Shot"
+}
+
+blocked_shot_events = []
+
+for event in events:
+    if event.get("type", {}).get("name") != "Block":
+        continue
+
+    related_ids = event.get("related_events") or []
+
+    if any(related_id in shot_ids for related_id in related_ids):
+        blocked_shot_events.append(event)
+
+print(
+    "Total blocks:",
+    sum(
+        event.get("type", {}).get("name") == "Block"
+        for event in events
+    )
+)
+print("Blocks related to shots:", len(blocked_shot_events))
+
+# show examples of blocks related to shots
+for event in blocked_shot_events[:5]:
+    print(
+        "Player:", event.get("player", {}).get("name"),
+        "Block:", event.get("block", {})
+    )
+
+
+
+# test player shot block aggregation
+print("\nPLAYER SHOT BLOCK AGGREGATION TEST\n")
+
+defending_df = aggregate_defending(events)
+
+print(
+    defending_df[
+        ["player_name", "total_blocks", "shot_blocks"]
+    ].sort_values(
+        "shot_blocks",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal blocks:", defending_df["total_blocks"].sum())
+print("Total shot blocks:", defending_df["shot_blocks"].sum())
