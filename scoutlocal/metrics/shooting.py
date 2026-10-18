@@ -48,7 +48,7 @@ def get_non_penalty_xg(event):
     if shot_type == "Penalty":
         return 0.0
 
-    return float(shot.get("statsbomb_xg", 0.0))
+    return float(shot.get("statsbomb_xg", 0.0) or 0.0)
 
 
 # check if a shot uses a specific body part
@@ -94,11 +94,11 @@ def aggregate_shooting(events):
                 "shots_on_target": 0,
                 "goals": 0,
                 "shots_inside_box": 0,
+                "total_xg": 0.0,
                 "non_penalty_xg": 0.0,
                 "headed_shots": 0,
                 "left_footed_shots": 0,
                 "right_footed_shots": 0,
-                "total_xg": 0.0,
                 "non_penalty_goals": 0,
                 "other_shots": 0,
             }
@@ -115,23 +115,24 @@ def aggregate_shooting(events):
             rows[key]["goals"] += 1
 
         # count non penalty goals for each player
-        if is_goal(event) and event.get("shot", {}).get("type", {}).get("name") != "Penalty":
+        if (
+            is_goal(event)
+            and event.get("shot", {}).get("type", {}).get("name") != "Penalty"
+        ):
             rows[key]["non_penalty_goals"] += 1
 
         # count shots inside the penalty box for each player
         if is_shot_inside_box(event):
             rows[key]["shots_inside_box"] += 1
 
-                # count shots using other body parts
+        # count shots using other body parts
         if is_shot_body_part(event, "Other"):
             rows[key]["other_shots"] += 1
 
         # add total xg for each player
         rows[key]["total_xg"] += float(
-            event.get("shot", {}).get("statsbomb_xg", 0.0)
-
-        
-)
+            event.get("shot", {}).get("statsbomb_xg", 0.0) or 0.0
+        )
 
         # add non penalty xg for each player
         rows[key]["non_penalty_xg"] += get_non_penalty_xg(event)
@@ -147,7 +148,6 @@ def aggregate_shooting(events):
         # count right foot shots for each player
         if is_shot_body_part(event, "Right Foot"):
             rows[key]["right_footed_shots"] += 1
-
 
     df = pd.DataFrame(
         list(rows.values()),
@@ -170,28 +170,41 @@ def aggregate_shooting(events):
         ],
     )
 
+    if df.empty:
+        for column in [
+            "shooting_accuracy",
+            "goal_conversion_rate",
+            "xg_per_shot",
+            "goals_minus_xg",
+            "non_penalty_goals_minus_xg",
+        ]:
+            df[column] = pd.Series(dtype=float)
+
+        return df
+
     # calculate shooting accuracy for each player
     df["shooting_accuracy"] = (
         df["shots_on_target"] / df["total_shots"] * 100
-    ).round(2)
+    )
 
     # calculate goal conversion rate for each player
     df["goal_conversion_rate"] = (
         df["goals"] / df["total_shots"] * 100
-    ).round(2)
+    )
 
     # calculate xg per shot for each player
     df["xg_per_shot"] = (
         df["total_xg"] / df["total_shots"]
-    ).round(2)
+    )
 
-        # calculate goals minus xg for each player
+    # calculate goals minus xg for each player
     df["goals_minus_xg"] = (
         df["goals"] - df["total_xg"]
-    ).round(2)
+    )
 
-        # calculate non penalty goals minus non penalty xg
+    # calculate non penalty goals minus non penalty xg
     df["non_penalty_goals_minus_xg"] = (
         df["non_penalty_goals"] - df["non_penalty_xg"]
-    ).round(2)
+    )
+
     return df
