@@ -15,7 +15,7 @@ from scoutlocal.metrics.player_metrics import (
 from scoutlocal.metrics.passing import aggregate_passing
 from scoutlocal.metrics.carrying import aggregate_carrying
 from scoutlocal.metrics.shooting import aggregate_shooting
-
+from scoutlocal.metrics.defending import aggregate_defending
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -60,6 +60,7 @@ def main():
     all_passing = []
     all_carrying = []
     all_shooting = []
+    all_defending = []
     all_minutes = []
 
     # map players to their teams
@@ -130,6 +131,9 @@ def main():
         # calculate shooting stats
         shooting_metrics = aggregate_shooting(events)
 
+        # calculate defending stats
+        defending_metrics = aggregate_defending(events)
+
         # calculate how long each player played
         minute_metrics = calculate_minutes(events)
 
@@ -144,6 +148,9 @@ def main():
 
         if not shooting_metrics.empty:
             all_shooting.append(shooting_metrics)
+
+        if not defending_metrics.empty:
+            all_defending.append(defending_metrics)
 
         if not minute_metrics.empty:
             all_minutes.append(minute_metrics)
@@ -254,6 +261,42 @@ def main():
                 "team_name",
             ]
         )
+
+    
+    # combine defending stats from every match
+    if all_defending:
+        defending_totals = pd.concat(
+            all_defending,
+            ignore_index=True,
+        )
+
+        # remove match level percentages before combining
+        defending_totals = defending_totals.drop(
+            columns=[
+                "tackle_success_rate",
+                "interception_success_rate",
+            ],
+            errors="ignore",
+        )
+
+        # add together each player's defending totals
+        defending_totals = (
+            defending_totals
+            .groupby(
+                ["player_id", "player_name", "team_name"],
+                as_index=False,
+            )
+            .sum(numeric_only=True)
+        )
+    else:
+        defending_totals = pd.DataFrame(
+            columns=[
+                "player_id",
+                "player_name",
+                "team_name",
+            ]
+        )
+
 
     # combine minutes from every match
     minutes = pd.concat(
@@ -381,6 +424,26 @@ def main():
         how="left",
     )
 
+
+    # remove defending stats already in basic metrics
+    defending_totals = defending_totals.drop(
+        columns=[
+            "team_id",
+        ],
+        errors="ignore",
+    )
+
+    # add detailed defending stats
+    players = players.merge(
+        defending_totals,
+        on=[
+            "player_id",
+            "player_name",
+            "team_name",
+        ],
+        how="left",
+    )
+
     # add team id for every player
     players["team_id"] = [
         team_lookup.get((row.player_id, row.team_name))
@@ -445,6 +508,18 @@ def main():
         "left_footed_shots",
         "right_footed_shots",
         "other_shots",
+        "tackles_attempted",
+        "tackles_won",
+        "interceptions_attempted",
+        "interceptions_won",
+        "total_blocks",
+        "shot_blocks",
+        "total_clearances",
+        "headed_clearances",
+        "left_footed_clearances",
+        "right_footed_clearances",
+        "other_clearances",
+
     ]
 
     # add missing stat columns as 0
@@ -521,8 +596,76 @@ def main():
         round(players["non_penalty_xg"].sum(), 2)
     )
 
+    # calculate season tackle success rate
+    players["tackle_success_rate"] = (
+        players["tackles_won"]
+        .div(players["tackles_attempted"].replace(0, float("nan")))
+        .mul(100)
+        .fillna(0)
+    )
+
+    # calculate season interception success rate
+    players["interception_success_rate"] = (
+        players["interceptions_won"]
+        .div(players["interceptions_attempted"].replace(0, float("nan")))
+        .mul(100)
+        .fillna(0)
+    )
+
+    # validate defending totals
+    print("\nDEFENDING DATA VALIDATION")
+
+    print("Tackles attempted:", int(players["tackles_attempted"].sum()))
+    print("Tackles won:", int(players["tackles_won"].sum()))
+    print("Interceptions attempted:", int(players["interceptions_attempted"].sum()))
+    print("Interceptions won:", int(players["interceptions_won"].sum()))
+    print("Total blocks:", int(players["total_blocks"].sum()))
+    print("Shot blocks:", int(players["shot_blocks"].sum()))
+    print("Total clearances:", int(players["total_clearances"].sum()))
+
+    # validate all clearance body parts
+    clearance_body_parts = (
+        players["headed_clearances"]
+        + players["left_footed_clearances"]
+        + players["right_footed_clearances"]
+        + players["other_clearances"]
+    )
+
+    print("Clearance body part total:", int(clearance_body_parts.sum()))
+
+    assert (
+        players["total_clearances"].sum()
+        == clearance_body_parts.sum()
+    ), "Clearance body part totals do not match"
+
+
+
     # calculate per 90 stats
     players = add_per90_metrics(players)
+
+    # calculate defending stats per 90 minutes
+    defending_per90_columns = [
+        "tackles_attempted",
+        "tackles_won",
+        "interceptions_attempted",
+        "interceptions_won",
+        "total_blocks",
+        "shot_blocks",
+        "total_clearances",
+        "headed_clearances",
+        "left_footed_clearances",
+        "right_footed_clearances",
+        "other_clearances",
+    ]
+
+    for column in defending_per90_columns:
+        players[f"{column}_per90"] = (
+            players[column]
+            .div(players["minutes"].replace(0, float("nan")))
+            .mul(90)
+            .fillna(0)
+        )
+
 
     # show players with the most minutes first
     players = players.sort_values(
@@ -533,7 +676,7 @@ def main():
     # create the data folder if needed
     output_dir = Path("data")
     output_dir.mkdir(exist_ok=True)
-
+    
     # save the final player dataset
     output_path = (
         output_dir / "player_metrics.csv"

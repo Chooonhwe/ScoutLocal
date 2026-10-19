@@ -1311,3 +1311,83 @@ print(
 
 print("\nTotal blocks:", defending_df["total_blocks"].sum())
 print("Total shot blocks:", defending_df["shot_blocks"].sum())
+
+
+# inspect clearance events
+clearance_events = [
+    event
+    for event in events
+    if event.get("type", {}).get("name") == "Clearance"
+]
+
+print("\nCLEARANCE EVENT TEST\n")
+print("Total clearances:", len(clearance_events))
+
+# check clearance event fields
+clearance_fields = {
+    field
+    for event in clearance_events
+    for field in event.get("clearance", {}).keys()
+}
+
+print("Clearance fields:", clearance_fields)
+
+# show clearance examples
+for event in clearance_events[:5]:
+    print(
+        "Player:", event.get("player", {}).get("name"),
+        "Clearance:", event.get("clearance", {})
+    )
+
+
+
+# test player clearance aggregation
+print("\nPLAYER CLEARANCE AGGREGATION TEST\n")
+
+defending_df = aggregate_defending(events)
+
+print(
+    defending_df[
+        ["player_name", "total_clearances"]
+    ].sort_values(
+        "total_clearances",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal clearances:", defending_df["total_clearances"].sum())
+
+print(
+    "Total blocks:",
+    defending_df["total_blocks"].sum()
+)
+
+print(
+    "Total shot blocks:",
+    defending_df["shot_blocks"].sum()
+)
+
+# test clearance body part aggregation
+print("\nPLAYER CLEARANCE BODY PART TEST\n")
+
+defending_df = aggregate_defending(events)
+
+print(
+    defending_df[
+        [
+            "player_name",
+            "total_clearances",
+            "headed_clearances",
+            "left_footed_clearances",
+            "right_footed_clearances",
+        ]
+    ].sort_values(
+        "total_clearances",
+        ascending=False
+    ).to_string(index=False)
+)
+
+print("\nTotal clearances:", defending_df["total_clearances"].sum())
+print("Headed clearances:", defending_df["headed_clearances"].sum())
+print("Left foot clearances:", defending_df["left_footed_clearances"].sum())
+print("Right foot clearances:", defending_df["right_footed_clearances"].sum())

@@ -1,4 +1,6 @@
+
 import pandas as pd
+
 
 # check if an event is a tackle
 def is_tackle(event):
@@ -24,10 +26,68 @@ def is_tackle_won(event):
     }
 
 
+# check if an event is an interception
+def is_interception(event):
+    return event.get("type", {}).get("name") == "Interception"
+
+
+# check if an interception is successful
+def is_interception_won(event):
+    if not is_interception(event):
+        return False
+
+    outcome = (
+        event.get("interception", {})
+        .get("outcome", {})
+        .get("name")
+    )
+
+    return outcome in {
+        "Won",
+        "Success In Play",
+        "Success Out",
+    }
+
+
+# check if an event is a block
+def is_block(event):
+    return event.get("type", {}).get("name") == "Block"
+
+
+# check if a block is related to a shot
+def is_shot_block(event, shot_ids):
+    if not is_block(event):
+        return False
+
+    related_ids = event.get("related_events") or []
+
+    return any(
+        related_id in shot_ids
+        for related_id in related_ids
+    )
+
+
+# check if an event is a clearance
+def is_clearance(event):
+    return event.get("type", {}).get("name") == "Clearance"
+
+# check if a clearance uses a specific body part
+def is_clearance_body_part(event, body_part):
+    if not is_clearance(event):
+        return False
+
+    clearance_body_part = (
+        event.get("clearance", {})
+        .get("body_part", {})
+        .get("name")
+    )
+
+    return clearance_body_part == body_part
 # aggregate defending metrics for each player
 def aggregate_defending(events):
     rows = {}
-        # get all shot event ids
+
+    # get all shot event ids
     shot_ids = {
         event.get("id")
         for event in events
@@ -35,11 +95,12 @@ def aggregate_defending(events):
     }
 
     for event in events:
-        # only process tackles interceptions and blocks
+        # only process tackles interceptions blocks and clearances
         if not (
             is_tackle(event)
             or is_interception(event)
             or is_block(event)
+            or is_clearance(event)
         ):
             continue
 
@@ -65,9 +126,23 @@ def aggregate_defending(events):
                 "interceptions_attempted": 0,
                 "interceptions_won": 0,
                 "total_blocks": 0,
-                 "shot_blocks": 0,
+                "shot_blocks": 0,
+                "total_clearances": 0,
+                "headed_clearances": 0,
+                "left_footed_clearances": 0,
+                "right_footed_clearances": 0,
+                "other_clearances": 0,
             }
+        # count clearances with other or missing body parts
+        if is_clearance(event):
+            body_part = (
+                event.get("clearance", {})
+                .get("body_part", {})
+                .get("name")
+            )
 
+            if body_part not in {"Head", "Left Foot", "Right Foot"}:
+                rows[key]["other_clearances"] += 1
         # count tackles attempted for each player
         if is_tackle(event):
             rows[key]["tackles_attempted"] += 1
@@ -87,9 +162,26 @@ def aggregate_defending(events):
         # count total blocks for each player
         if is_block(event):
             rows[key]["total_blocks"] += 1
-                # count shot blocks for each player
+
+        # count shot blocks for each player
         if is_shot_block(event, shot_ids):
             rows[key]["shot_blocks"] += 1
+
+        # count total clearances for each player
+        if is_clearance(event):
+            rows[key]["total_clearances"] += 1
+
+        # count headed clearances for each player
+        if is_clearance_body_part(event, "Head"):
+            rows[key]["headed_clearances"] += 1
+
+        # count left foot clearances for each player
+        if is_clearance_body_part(event, "Left Foot"):
+            rows[key]["left_footed_clearances"] += 1
+
+        # count right foot clearances for each player
+        if is_clearance_body_part(event, "Right Foot"):
+            rows[key]["right_footed_clearances"] += 1
 
     df = pd.DataFrame(
         list(rows.values()),
@@ -104,6 +196,11 @@ def aggregate_defending(events):
             "interceptions_won",
             "total_blocks",
             "shot_blocks",
+            "total_clearances",
+            "headed_clearances",
+            "left_footed_clearances",
+            "right_footed_clearances",
+            "other_clearances",
         ],
     )
 
@@ -124,42 +221,3 @@ def aggregate_defending(events):
     )
 
     return df
-
-# check if an event is an interception
-def is_interception(event):
-    return event.get("type", {}).get("name") == "Interception"
-
-
-# check if an interception is successful
-def is_interception_won(event):
-    if not is_interception(event):
-        return False
-
-    outcome = (
-        event.get("interception", {})
-        .get("outcome", {})
-        .get("name")
-    )
-
-    return outcome in {
-        "Won",
-        "Success In Play",
-        "Success Out",
-    }
-
-# check if an event is a block
-def is_block(event):
-    return event.get("type", {}).get("name") == "Block"
-
-
-# check if a block is related to a shot
-def is_shot_block(event, shot_ids):
-    if not is_block(event):
-        return False
-
-    related_ids = event.get("related_events") or []
-
-    return any(
-        related_id in shot_ids
-        for related_id in related_ids
-    )
