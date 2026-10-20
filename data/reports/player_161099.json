@@ -1,0 +1,64 @@
+{
+  "player_name": "Ricky Lallawmawma",
+  "team_name": "Jamshedpur",
+  "position": "Full Back",
+  "minutes": 2099.5,
+  "peer_count": 23,
+  "all_metrics": [
+    {
+      "metric": "final_third_entries_per90",
+      "value": 9.002143367468445,
+      "percentile": 100.0
+    },
+    {
+      "metric": "interceptions_won_per90",
+      "value": 1.243153131698023,
+      "percentile": 69.56521739130434
+    },
+    {
+      "metric": "progressive_passes_per90",
+      "value": 3.7723267444629673,
+      "percentile": 69.56521739130434
+    },
+    {
+      "metric": "tackles_won_per90",
+      "value": 0.9002143367468445,
+      "percentile": 30.434782608695656
+    },
+    {
+      "metric": "progressive_carries_per90",
+      "value": 0.4286734936889735,
+      "percentile": 21.73913043478261
+    }
+  ],
+  "strongest_metrics": [
+    {
+      "metric": "final_third_entries_per90",
+      "value": 9.002143367468445,
+      "percentile": 100.0
+    },
+    {
+      "metric": "interceptions_won_per90",
+      "value": 1.243153131698023,
+      "percentile": 69.56521739130434
+    }
+  ],
+  "lowest_metrics": [
+    {
+      "metric": "progressive_carries_per90",
+      "value": 0.4286734936889735,
+      "percentile": 21.73913043478261
+    },
+    {
+      "metric": "tackles_won_per90",
+      "value": 0.9002143367468445,
+      "percentile": 30.434782608695656
+    }
+  ],
+  "observations": [
+    "Final third entries: 9.00 per 90 minutes (percentile rank 100.00 among 23 eligible full back players). High recorded activity.",
+    "Interceptions won: 1.24 per 90 minutes (percentile rank 69.57 among 23 eligible full back players). Moderate recorded activity.",
+    "Progressive carries: 0.43 per 90 minutes (percentile rank 21.74 among 23 eligible full back players). Low recorded activity.",
+    "Tackles won: 0.90 per 90 minutes (percentile rank 30.43 among 23 eligible full back players). Low recorded activity."
+  ]
+}

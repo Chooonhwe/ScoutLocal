@@ -79,6 +79,61 @@ def main():
 
         # get all events from the match
         events = client.events(match_id)
+        
+        # use consistent team names across the season
+        team_name_lookup = {
+            7282: "ATK Mohun Bagan",
+            7289: "Hyderabad",
+        }
+
+        # fix inconsistent team names in event data
+        for event in events:
+            team = event.get("team") or {}
+            team_id = team.get("id")
+
+            if team_id in team_name_lookup:
+                event["team"]["name"] = team_name_lookup[team_id]
+
+        
+        # fix inconsistent player names in event data
+        player_name_lookup = {
+            159773: "Vikram Pratap Singh",
+        }
+
+        for event in events:
+            player = event.get("player") or {}
+            player_id = player.get("id")
+
+            if player_id in player_name_lookup:
+                event["player"]["name"] = player_name_lookup[player_id]
+
+            # fix player names in starting lineups
+            if event.get("type", {}).get("name") == "Starting XI":
+                lineup = event.get("tactics", {}).get("lineup") or []
+
+                for lineup_player in lineup:
+                    lineup_player_data = lineup_player.get("player") or {}
+                    lineup_player_id = lineup_player_data.get("id")
+
+                    if lineup_player_id in player_name_lookup:
+                        lineup_player_data["name"] = player_name_lookup[
+                            lineup_player_id
+                        ]
+
+            # fix replacement names in substitutions
+            if event.get("type", {}).get("name") == "Substitution":
+                replacement = (
+                    event.get("substitution") or {}
+                ).get("replacement") or {}
+
+                replacement_id = replacement.get("id")
+
+                if replacement_id in player_name_lookup:
+                    replacement["name"] = player_name_lookup[
+                        replacement_id
+                    ]
+
+
 
         # get team ids from player events
         for event in events:

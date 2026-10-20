@@ -37,6 +37,8 @@ from scoutlocal.metrics.defending import (
     is_interception_won,
     aggregate_defending,
 )
+
+from scoutlocal.metrics.positions import extract_match_positions
 # get statsbomb data
 client = StatsBombOpenData()
 
@@ -1391,3 +1393,48 @@ print("\nTotal clearances:", defending_df["total_clearances"].sum())
 print("Headed clearances:", defending_df["headed_clearances"].sum())
 print("Left foot clearances:", defending_df["left_footed_clearances"].sum())
 print("Right foot clearances:", defending_df["right_footed_clearances"].sum())
+
+
+
+# inspect player positions in starting lineups
+print("\nPLAYER POSITION TEST\n")
+
+starting_lineups = [
+    event
+    for event in events
+    if event.get("type", {}).get("name") == "Starting XI"
+]
+
+for event in starting_lineups:
+    team_name = event.get("team", {}).get("name")
+    lineup = event.get("tactics", {}).get("lineup", [])
+
+    print("\nTeam:", team_name)
+
+    for player in lineup[:11]:
+        player_data = player.get("player", {})
+        position_data = player.get("position", {})
+
+        print(
+            player_data.get("id"),
+            player_data.get("name"),
+            position_data.get("name"),
+        )
+
+
+# test player position classification
+print("\nPLAYER POSITION CLASSIFICATION TEST\n")
+
+position_df = extract_match_positions(events)
+
+print(
+    position_df[
+        ["player_name", "position_name", "position_group"]
+    ].to_string(index=False)
+)
+
+print("\nStarting players classified:", len(position_df))
+print(
+    "Unknown positions:",
+    (position_df["position_group"] == "Unknown").sum()
+)

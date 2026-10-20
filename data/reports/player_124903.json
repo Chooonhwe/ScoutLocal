@@ -1,0 +1,64 @@
+{
+  "player_name": "Akash Mishra",
+  "team_name": "Hyderabad",
+  "position": "Full Back",
+  "minutes": 2151.45,
+  "peer_count": 23,
+  "all_metrics": [
+    {
+      "metric": "interceptions_won_per90",
+      "value": 1.798786864672663,
+      "percentile": 100.0
+    },
+    {
+      "metric": "progressive_carries_per90",
+      "value": 2.5099351600083666,
+      "percentile": 95.65217391304348
+    },
+    {
+      "metric": "tackles_won_per90",
+      "value": 1.2967998326709893,
+      "percentile": 73.91304347826086
+    },
+    {
+      "metric": "final_third_entries_per90",
+      "value": 7.153315206023845,
+      "percentile": 73.91304347826086
+    },
+    {
+      "metric": "progressive_passes_per90",
+      "value": 2.719096423342397,
+      "percentile": 17.391304347826086
+    }
+  ],
+  "strongest_metrics": [
+    {
+      "metric": "interceptions_won_per90",
+      "value": 1.798786864672663,
+      "percentile": 100.0
+    },
+    {
+      "metric": "progressive_carries_per90",
+      "value": 2.5099351600083666,
+      "percentile": 95.65217391304348
+    }
+  ],
+  "lowest_metrics": [
+    {
+      "metric": "progressive_passes_per90",
+      "value": 2.719096423342397,
+      "percentile": 17.391304347826086
+    },
+    {
+      "metric": "final_third_entries_per90",
+      "value": 7.153315206023845,
+      "percentile": 73.91304347826086
+    }
+  ],
+  "observations": [
+    "Interceptions won: 1.80 per 90 minutes (percentile rank 100.00 among 23 eligible full back players). High recorded activity.",
+    "Progressive carries: 2.51 per 90 minutes (percentile rank 95.65 among 23 eligible full back players). High recorded activity.",
+    "Progressive passes: 2.72 per 90 minutes (percentile rank 17.39 among 23 eligible full back players). Low recorded activity.",
+    "Final third entries: 7.15 per 90 minutes (percentile rank 73.91 among 23 eligible full back players). Moderate recorded activity."
+  ]
+}
