@@ -375,11 +375,19 @@ else:
 
 
 # searchable player dropdown
-st.divider()
-st.subheader("Search & Select Player")
 
+# quick scouting preview for discovered players
+st.divider()
+st.subheader("🔎 Quick Scouting Preview")
+
+st.caption(
+    "Select a player to inspect their scouting statistics "
+    "before opening their complete profile."
+)
+
+# searchable player selection
 selected_index = st.selectbox(
-    "Player name",
+    "Search or select a player",
     options=filtered.index.tolist(),
     index=None,
     placeholder="Start typing a player's name...",
@@ -391,29 +399,140 @@ selected_index = st.selectbox(
 if selected_index is not None:
     player = filtered.loc[selected_index]
 
-    st.success(
-        f"Selected: {player['player_name']} "
-        f"| {player['team_name']} "
-        f"| {player['primary_position_group']}"
-    )
+    player_name = str(player["player_name"])
+    position = str(player["primary_position_group"])
+    minutes = float(player["minutes"])
 
-    # store the player for future page integration
+    # display a compact scouting identity card
+    with st.container(border=True):
+        st.subheader(player_name)
+
+        st.caption(
+            f"{player['team_name']} | {position}"
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Minutes Played",
+            f"{minutes:,.2f}",
+        )
+
+        col2.metric(
+            "Position",
+            position,
+        )
+
+        col3.metric(
+            "Ranking Status",
+            "Eligible" if minutes >= 900 else "Limited Data",
+        )
+
+    # choose position-specific scouting metrics
+    profile_metrics = [
+        metric
+        for metric in SCOUTING_PROFILES.get(position, [])
+        if metric in df.columns
+    ]
+
+    # use all eligible positional peers as the reference
+    reference = df[
+        (df["minutes"] >= 900)
+        & (df["primary_position_group"] == position)
+    ].copy()
+
+    preview_rows = []
+
+    for metric in profile_metrics:
+        value = player.get(metric)
+
+        if pd.isna(value):
+            continue
+
+        percentile = None
+
+        # only rank players meeting the minutes requirement
+        if minutes >= 900 and not reference.empty:
+            ranks = (
+                reference[metric]
+                .rank(method="average", pct=True)
+                .mul(100)
+            )
+
+            rank = ranks.get(player.name)
+
+            if pd.notna(rank):
+                percentile = float(rank)
+
+        preview_rows.append({
+            "Metric": metric_label(metric),
+            "Value /90": float(value),
+            "Percentile": percentile,
+        })
+
+    # display compact statistical preview
+    st.markdown("#### Performance Snapshot")
+
+    if preview_rows:
+        preview_df = pd.DataFrame(preview_rows)
+
+        st.dataframe(
+            preview_df.style.format({
+                "Value /90": "{:.2f}",
+                "Percentile": lambda value: (
+                    f"{value:.2f}"
+                    if pd.notna(value)
+                    else "Not ranked"
+                ),
+            }),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        # show percentile performance chart when available
+        ranked_preview = preview_df.dropna(
+            subset=["Percentile"]
+        )
+
+        if not ranked_preview.empty:
+            st.bar_chart(
+                ranked_preview.set_index("Metric")[
+                    "Percentile"
+                ],
+                horizontal=True,
+                x_label="Metric",
+                y_label="Percentile Rank",
+            )
+
+    else:
+        st.info(
+            "No position-specific metrics are available "
+            "for this player."
+        )
+
+    if minutes < 900:
+        st.info(
+            "This player has fewer than 900 recorded minutes. "
+            "Their per-90 statistics are displayed, but "
+            "positional percentile rankings are unavailable."
+        )
+
+    # save selection for the player profile page
     st.session_state["selected_player_id"] = int(
         player["player_id"]
     )
+
     st.session_state["selected_team_id"] = int(
         player["team_id"]
     )
 
-
-    # open the selected player's scouting profile
+    # open the detailed player profile
     if st.button(
-        "View Player Profile",
+        "View Full Player Profile",
         type="primary",
         use_container_width=True,
     ):
         st.switch_page("pages/Player_Profile.py")
-
 
 # footer
 st.divider()

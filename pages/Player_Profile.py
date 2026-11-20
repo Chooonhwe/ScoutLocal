@@ -12,7 +12,7 @@ from scoutlocal.ui.metrics_card import (
     render_metric_breakdown,
 )
 from scoutlocal.ui.scouting_insights import render_scouting_insights
-
+from scoutlocal.ui.metric_glossary import render_metric_glossary
 
 # configure player profile page
 st.set_page_config(
@@ -166,14 +166,18 @@ render_player_metrics(
 )
 
 
-# organize detailed analysis
-overview_tab, breakdown_tab, insights_tab = st.tabs(
+
+
+# organize the player analysis into four sections
+overview_tab, breakdown_tab, insights_tab, academy_tab = st.tabs(
     [
         "Performance Overview",
         "Statistical Breakdown",
         "Scouting Intelligence",
+        "Learn the Metrics",
     ]
 )
+
 
 
 # performance overview
@@ -236,6 +240,16 @@ with insights_tab:
         metrics=metrics,
         peer_count=len(reference),
     )
+
+
+# explain the metrics used in this player's profile
+with academy_tab:
+    metric_names = [
+        item["metric"]
+        for item in metrics
+    ]
+
+    render_metric_glossary(metric_names)
 
 
 # methodology

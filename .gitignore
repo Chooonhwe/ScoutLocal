@@ -13,3 +13,4 @@ data/*.parquet
 Thumbs.db
 .vscode/
 *.egg-info/
+data/*.db
