@@ -18,6 +18,7 @@ from scoutlocal.ui.view_mode import (
     is_beginner_mode,
 )
 from scoutlocal.ui.scouting_filters import render_advanced_filters
+from scoutlocal.database.scouting_db import get_player_reports
 
 st.set_page_config(
     page_title="ScoutLocal | Talent Intelligence",
@@ -233,12 +234,13 @@ def show_player_intelligence(player, dataframe):
             "positional percentile rankings are unavailable."
         )
 
-    overview, breakdown, insights, academy = st.tabs([
-        "Overview",
-        "Statistics",
-        "Scouting Insights",
-        "Learn",
-    ])
+    overview, breakdown, insights, reports_tab, academy = st.tabs([
+    "Overview",
+    "Statistics",
+    "Scouting Insights",
+    "Reports",
+    "Learn",
+])
 
     with overview:
         render_player_metrics(
@@ -267,6 +269,77 @@ def show_player_intelligence(player, dataframe):
         render_scouting_insights(
             metrics,
             len(reference),
+        )
+
+    # Display saved reports for the selected player
+    with reports_tab:
+        st.subheader("Scouting Report History")
+
+        player_reports = get_player_reports(
+            int(player["player_id"]),
+            int(player["team_id"]),
+        )
+
+        st.metric("Saved Reports", len(player_reports))
+
+        if not player_reports:
+            st.info(
+                "No scouting reports have been saved "
+                "for this player yet."
+            )
+        else:
+            for report in player_reports:
+                title = (
+                    f"Report #{report['id']} | "
+                    f"{report['observation_date']} | "
+                    f"{report['recommendation']}"
+                )
+
+                with st.expander(title):
+                    st.write(
+                        f"**Scout:** {report['scout_name']}"
+                    )
+
+                    st.write(
+                        f"**Match Context:** "
+                        f"{report['match_context'] or 'Not recorded'}"
+                    )
+
+                    col1, col2, col3 = st.columns(3)
+
+                    col1.metric(
+                        "Technical",
+                        f"{report['technical_rating']}/5"
+                        if report["technical_rating"] is not None
+                        else "Not rated",
+                    )
+
+                    col2.metric(
+                        "Tactical",
+                        f"{report['tactical_rating']}/5"
+                        if report["tactical_rating"] is not None
+                        else "Not rated",
+                    )
+
+                    col3.metric(
+                        "Physical",
+                        f"{report['physical_rating']}/5"
+                        if report["physical_rating"] is not None
+                        else "Not rated",
+                    )
+
+                    st.markdown("**Strengths**")
+                    st.write(report["strengths"] or "Not recorded")
+
+                    st.markdown("**Development Areas**")
+                    st.write(report["weaknesses"] or "Not recorded")
+
+                    st.markdown("**Observations**")
+                    st.write(report["observations"] or "Not recorded")
+
+        st.caption(
+            "Scouting reports are retrieved from "
+            "your ScoutLocal database."
         )
 
     with academy:
