@@ -20,6 +20,15 @@ from scoutlocal.ui.view_mode import (
 from scoutlocal.ui.scouting_filters import render_advanced_filters
 from scoutlocal.database.scouting_db import get_player_reports
 
+from scoutlocal.database.recruitment_db import (
+    add_recruitment_target,
+    get_player_recruitment_target,
+)
+
+from scoutlocal.database.recruitment_db import (
+    add_recruitment_target,
+    get_player_recruitment_target,
+)
 st.set_page_config(
     page_title="ScoutLocal | Talent Intelligence",
     page_icon="SL",
@@ -681,6 +690,69 @@ with intelligence_col:
                 selected_player,
                 df,
             )
+
+
+
+            # RECRUITMENT ACTIONS
+            st.divider()
+            st.subheader("Recruitment Actions")
+
+            player_id = int(selected_player["player_id"])
+            team_id = int(selected_player["team_id"])
+
+            existing_target = get_player_recruitment_target(
+                player_id,
+                team_id,
+            )
+
+            if existing_target is None:
+                priority = st.selectbox(
+                    "Recruitment Priority",
+                    ["Low", "Medium", "High", "Critical"],
+                    index=1,
+                    key=f"priority_{player_id}_{team_id}",
+                )
+
+                if st.button(
+                    "Add to Recruitment Shortlist",
+                    type="primary",
+                    use_container_width=True,
+                    key=f"add_target_{player_id}_{team_id}",
+                ):
+                    added = add_recruitment_target(
+                        selected_player,
+                        priority=priority,
+                    )
+
+                    if added:
+                        st.success(
+                            "Player added to recruitment shortlist."
+                        )
+                        st.rerun()
+                    else:
+                        st.info(
+                            "This player is already in your shortlist."
+                        )
+
+            else:
+                st.success(
+                    "This player is already in your recruitment database."
+                )
+
+                st.write(
+                    f"**Status:** {existing_target['status']}"
+                )
+
+                st.write(
+                    f"**Priority:** {existing_target['priority']}"
+                )
+
+                if st.button(
+                    "Open Recruitment Shortlist",
+                    use_container_width=True,
+                    key=f"open_shortlist_{player_id}_{team_id}",
+                ):
+                    st.switch_page("pages/Shortlist.py")
 
             if st.button(
                 "Create Scouting Report",
